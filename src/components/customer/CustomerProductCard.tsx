@@ -1,3 +1,4 @@
+import { ProductPhotoStage } from '@/components/product/ProductPhotoStage'
 import { Card, CardContent } from '@/components/ui/card'
 import { productDisplayTitle } from '@/lib/productDisplayTitle'
 import { getPublicImageUrl } from '@/lib/products'
@@ -40,15 +41,12 @@ export function CustomerProductCard({
             fillCell ? 'min-h-0' : 'min-h-[4.5rem]',
           )}
         >
-          <div className="aspect-[5/4] w-[76%] max-w-full overflow-hidden rounded-md bg-muted">
-            {imageUrl ? (
-              <img src={imageUrl} alt={displayName} className="size-full object-cover" />
-            ) : (
-              <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-                No image
-              </div>
-            )}
-          </div>
+          <ProductPhotoStage
+            src={imageUrl}
+            alt={displayName}
+            variant="card"
+            className="aspect-[5/4] w-[76%] max-w-full rounded-md ring-1 ring-black/5"
+          />
         </div>
         <div className="space-y-0.5 pb-0.5 text-start">
           <p className="line-clamp-2 text-sm leading-snug font-medium">
