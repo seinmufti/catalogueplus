@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-
 import { Toaster } from '@/components/ui/sonner'
 import { AdminPcOnlyGate } from '@/components/admin/AdminPcOnlyGate'
 import { StoreCatalogueRoute } from '@/components/routing/StoreCatalogueRoute'
+import { getRouterBasename } from '@/lib/router-basename'
 import { adminPath, cataloguePath, isKnownStoreSlug } from '@/lib/store'
 import { AdminPage } from '@/pages/AdminPage'
 import { HomePage } from '@/pages/HomePage'
@@ -27,8 +28,10 @@ function LegacyCataloguePlusRedirect() {
 }
 
 export default function App() {
+  const basename = getRouterBasename()
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <div className="flex min-h-0 flex-1 flex-col">
         <Routes>
           <Route path="/" element={<HomePage />} />
