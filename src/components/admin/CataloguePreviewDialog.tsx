@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { CustomerPhoneFrame } from '@/components/customer/CustomerPhoneFrame'
-import { CustomerCataloguePage } from '@/pages/CustomerCataloguePage'
+import { CustomerCatalogueInPhone } from '@/components/customer/CustomerCatalogueInPhone'
 import { buttonVariants } from '@/components/ui/button'
 import {
   Dialog,
@@ -35,9 +34,7 @@ export function CataloguePreviewDialog() {
           <DialogTitle>Customer catalogue preview on iPhone 17</DialogTitle>
         </DialogHeader>
         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-          <CustomerPhoneFrame variant="iphone" fitWithinViewport>
-            {open ? <CustomerCataloguePage /> : null}
-          </CustomerPhoneFrame>
+          <CustomerCatalogueInPhone active={open} />
         </div>
       </DialogContent>
     </Dialog>

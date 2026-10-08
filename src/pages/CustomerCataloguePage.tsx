@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { StoreLogo } from '@/components/StoreLogo'
+import { CustomerCatalogueHeader } from '@/components/customer/CustomerCatalogueHeader'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
 import { Card, CardContent } from '@/components/ui/card'
 import { DUMMY_PRODUCT_COUNT } from '@/lib/dummyProduct'
@@ -46,12 +46,9 @@ export function CustomerCataloguePage() {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center justify-center gap-3 border-b bg-background px-3 py-2.5">
-        <StoreLogo className="h-11 w-auto shrink-0" />
-        <h1 className="text-base font-semibold tracking-tight">Aksesuarat Ali</h1>
-      </header>
+      <CustomerCatalogueHeader />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pt-1 pb-1">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pt-0.5 pb-1">
         {!supabaseConfigured && (
           <div className="shrink-0 p-1">
             <SupabaseConfigNotice />

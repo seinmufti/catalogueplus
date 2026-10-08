@@ -1,25 +1,21 @@
-import type { ReactNode } from 'react'
-import { CustomerPhoneFrame } from '@/components/customer/CustomerPhoneFrame'
+import { CustomerCatalogueInPhone } from '@/components/customer/CustomerCatalogueInPhone'
+import { CustomerCataloguePage } from '@/pages/CustomerCataloguePage'
 import { useIsMobileViewport } from '@/hooks/useMediaQuery'
 
-type CustomerViewportProps = {
-  children: ReactNode
-}
-
-export function CustomerViewport({ children }: CustomerViewportProps) {
+export function CustomerViewport() {
   const isMobile = useIsMobileViewport()
 
   if (isMobile) {
     return (
-      <div className="customer-mobile-shell bg-background">{children}</div>
+      <div className="customer-mobile-shell bg-background">
+        <CustomerCataloguePage />
+      </div>
     )
   }
 
   return (
     <div className="flex h-dvh max-h-dvh items-center justify-center overflow-hidden bg-muted/60 p-4">
-      <CustomerPhoneFrame variant="iphone" fitWithinViewport>
-        {children}
-      </CustomerPhoneFrame>
+      <CustomerCatalogueInPhone />
     </div>
   )
 }
