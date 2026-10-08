@@ -198,16 +198,19 @@ export function AdminPage() {
                         key={`cat-${group.category}`}
                         className="border-t-2 border-t-border bg-muted/30 hover:bg-muted/30"
                       >
-                        <TableCell colSpan={12} className="py-0">
-                          <div className="flex items-center gap-3 py-2.5 pl-1">
+                        <TableCell
+                          colSpan={12}
+                          className="bg-gradient-to-r from-purple-600 to-purple-950 p-0 dark:from-purple-500 dark:to-purple-950"
+                        >
+                          <div className="flex items-center gap-3 px-3 py-2.5">
                             <span
-                              className="h-5 w-1 shrink-0 rounded-full bg-primary"
-                              aria-hidden
-                            />
-                            <span className="text-sm font-semibold tracking-tight">
+                              dir="rtl"
+                              lang="ar"
+                              className="min-w-0 flex-1 text-start text-lg font-semibold leading-snug text-white"
+                            >
                               {group.category}
                             </span>
-                            <span className="rounded-full bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground ring-1 ring-border">
+                            <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-xs tabular-nums text-white">
                               {group.products.length}
                             </span>
                           </div>
@@ -251,7 +254,17 @@ export function AdminPage() {
                             )}
                           </TableCell>
                           <TableCell className="whitespace-normal text-muted-foreground">
-                            {showGroupHeaders ? '—' : product.category}
+                            {showGroupHeaders ? (
+                              '—'
+                            ) : (
+                              <span
+                                dir="rtl"
+                                lang="ar"
+                                className="block text-start text-lg font-medium text-purple-700 dark:text-purple-400"
+                              >
+                                {product.category}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="whitespace-normal">{product.name}</TableCell>
                           <TableCell className="font-medium whitespace-normal">
@@ -259,7 +272,7 @@ export function AdminPage() {
                           </TableCell>
                           <TableCell className="whitespace-normal">{product.brand || '—'}</TableCell>
                           <TableCell className="tabular-nums">
-                            {product.quantity_in_carton}
+                            {product.quantity_in_carton > 0 ? product.quantity_in_carton : '—'}
                           </TableCell>
                           <TableCell className={CHECKBOX_COLUMN_CLASS}>
                             <ProductHideCheckbox

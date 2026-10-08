@@ -18,7 +18,8 @@ export function CustomerProductCard({
 }: CustomerProductCardProps) {
   const imageUrl = getPublicImageUrl(product.image_path)
   const displayName = productDisplayTitle(product.category, product.name)
-  const title = showCategoryInTitle ? displayName : product.name.trim() || displayName
+  const completion = product.name.trim() || displayName
+  const categoryLabel = product.category.trim()
 
   return (
     <Card
@@ -49,14 +50,25 @@ export function CustomerProductCard({
             )}
           </div>
         </div>
-        <div className="space-y-0.5 pb-0.5">
-          <p className="line-clamp-2 text-sm leading-snug font-medium">{title}</p>
+        <div className="space-y-0.5 pb-0.5 text-start">
+          <p className="line-clamp-2 text-sm leading-snug font-medium">
+            {showCategoryInTitle && categoryLabel ? (
+              <>
+                <span className="text-lg text-purple-700 dark:text-purple-400">{categoryLabel}</span>
+                {completion ? <> {completion}</> : null}
+              </>
+            ) : (
+              completion
+            )}
+          </p>
           {!showCategoryInTitle && product.brand.trim() ? (
             <p className="truncate text-xs text-muted-foreground">{product.brand}</p>
           ) : null}
-          <p className="text-xs tabular-nums text-muted-foreground">
-            {product.quantity_in_carton} / carton
-          </p>
+          {product.quantity_in_carton > 0 ? (
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {product.quantity_in_carton} / carton
+            </p>
+          ) : null}
         </div>
       </CardContent>
     </Card>

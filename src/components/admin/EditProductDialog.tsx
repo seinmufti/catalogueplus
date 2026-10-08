@@ -12,6 +12,7 @@ import { BrandCombobox } from '@/components/admin/CategoryCombobox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatLoadError } from '@/lib/errors'
+import { parseOptionalCartonQuantity } from '@/lib/parseCartonQuantity'
 import {
   distinctBrandsFromProducts,
   getPublicImageUrl,
@@ -41,7 +42,9 @@ export function EditProductDialog({
   const [category, setCategory] = useState(product.category)
   const [brand, setBrand] = useState(product.brand)
   const [brandOptions, setBrandOptions] = useState<string[]>([])
-  const [quantity, setQuantity] = useState(String(product.quantity_in_carton))
+  const [quantity, setQuantity] = useState(
+    product.quantity_in_carton > 0 ? String(product.quantity_in_carton) : '',
+  )
   const [image, setImage] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -51,7 +54,9 @@ export function EditProductDialog({
     setName(product.name)
     setCategory(product.category)
     setBrand(product.brand)
-    setQuantity(String(product.quantity_in_carton))
+    setQuantity(
+      product.quantity_in_carton > 0 ? String(product.quantity_in_carton) : '',
+    )
     if (supabaseConfigured) {
       void listProducts()
         .then((rows) => setBrandOptions(distinctBrandsFromProducts(rows)))
@@ -72,8 +77,8 @@ export function EditProductDialog({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (inFlightRef.current) return
-    const qty = Number.parseInt(quantity, 10)
-    if (!name.trim() || !category.trim() || Number.isNaN(qty) || qty < 0) {
+    const qty = parseOptionalCartonQuantity(quantity)
+    if (!name.trim() || !category.trim() || qty === null) {
       toast.error('Fill in all fields with valid values.')
       return
     }
@@ -164,7 +169,6 @@ export function EditProductDialog({
                   step={1}
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  required
                 />
               </div>
               <div className="grid gap-2">

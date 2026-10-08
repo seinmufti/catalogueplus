@@ -24,17 +24,16 @@ export function CustomerCategorySection({
           ? fillViewport
             ? 'flex flex-1 flex-col overflow-hidden'
             : undefined
-          : 'overflow-hidden rounded-xl border border-border/70 bg-card/80 p-2 shadow-sm',
+          : 'overflow-hidden rounded-xl border border-border/70 bg-card/80 shadow-sm',
         !standalone && 'ring-1 ring-foreground/5',
       )}
     >
       {!standalone && (
-        <header className="mb-2 flex items-center gap-2 border-b border-border/60 pb-2">
-          <span className="h-4 w-0.5 shrink-0 rounded-full bg-primary" aria-hidden />
-          <h2 className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight text-foreground">
+        <header className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-950 px-3 py-2.5 dark:from-purple-500 dark:to-purple-950">
+          <h2 className="min-w-0 flex-1 truncate text-start text-lg font-semibold leading-snug text-white">
             {group.category}
           </h2>
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+          <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium tabular-nums text-white">
             {count}
           </span>
         </header>
@@ -42,8 +41,9 @@ export function CustomerCategorySection({
 
       <div
         className={cn(
-          'grid grid-cols-2 gap-2',
-          fillViewport && 'customer-product-grid-fit h-full min-h-0 flex-1',
+          'grid grid-cols-2 gap-2 p-2',
+          fillViewport && 'customer-product-grid-fit min-h-0 flex-1',
+          fillViewport && standalone && 'h-full',
         )}
       >
         {group.products.map((product) => (

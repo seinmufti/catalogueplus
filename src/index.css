@@ -175,4 +175,9 @@
   .customer-product-grid-fit {
     grid-template-rows: repeat(3, minmax(0, 1fr));
   }
+
+  /* RTL catalogue: vertical scrollbar on the left (Arabic layout). */
+  .customer-catalogue-scroll {
+    direction: rtl;
+  }
 }

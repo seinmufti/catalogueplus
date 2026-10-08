@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
 import { loadDummyProductImage, nextDummyProductFields } from '@/lib/dummyProduct'
 import { formatLoadError } from '@/lib/errors'
+import { parseOptionalCartonQuantity } from '@/lib/parseCartonQuantity'
 import {
   createOptimisticProductId,
   estimateNextProductKey,
@@ -120,8 +121,8 @@ export function AddProductDialog({
       toast.error('Please choose a product image.')
       return
     }
-    const qty = Number.parseInt(quantity, 10)
-    if (!name.trim() || !category.trim() || Number.isNaN(qty) || qty < 0) {
+    const qty = parseOptionalCartonQuantity(quantity)
+    if (!name.trim() || !category.trim() || qty === null) {
       toast.error('Fill in all fields with valid values.')
       return
     }
@@ -218,7 +219,6 @@ export function AddProductDialog({
                 step={1}
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                required
               />
             </div>
             <div className="grid gap-2">

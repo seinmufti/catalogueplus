@@ -45,7 +45,11 @@ export function CustomerCataloguePage() {
     !multiSection && products.length > 0 && products.length <= DUMMY_PRODUCT_COUNT
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+    <div
+      dir="rtl"
+      lang="ar"
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+    >
       <CustomerCatalogueHeader />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pt-1 pb-1.5">
@@ -80,7 +84,7 @@ export function CustomerCataloguePage() {
               fitsOneScreen
                 ? 'flex flex-col overflow-hidden'
                 : cn(
-                    'overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]',
+                    'customer-catalogue-scroll overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]',
                     multiSection ? 'space-y-2.5 py-0.5' : 'py-0.5',
                   ),
             )}
