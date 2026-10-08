@@ -49,6 +49,10 @@
 }
 
 :root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -124,14 +128,51 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
-  html,
-  body,
-  #root {
-    margin: 0;
-    min-height: 100%;
-    width: 100%;
-  }
   html {
     @apply font-sans;
+  }
+  html {
+    height: -webkit-fill-available;
+  }
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+  }
+  body {
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+  #root {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    width: 100%;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+}
+
+@layer utilities {
+  /* Customer phone: exactly one screen (100svh) including safe insets. */
+  .customer-mobile-shell {
+    position: fixed;
+    z-index: 0;
+    box-sizing: border-box;
+    display: flex;
+    overflow: hidden;
+    overscroll-behavior: none;
+    inset: 0;
+    height: 100svh;
+    max-height: 100svh;
+    flex-direction: column;
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  }
+
+  /* 2×3 grid — six products fill the space below the header. */
+  .customer-product-grid-fit {
+    grid-template-rows: repeat(3, minmax(0, 1fr));
   }
 }

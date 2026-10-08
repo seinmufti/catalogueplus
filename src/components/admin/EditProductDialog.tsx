@@ -8,10 +8,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { BrandCombobox } from '@/components/admin/CategoryCombobox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatLoadError } from '@/lib/errors'
-import { getPublicImageUrl, updateProduct } from '@/lib/products'
+import {
+  distinctBrandsFromProducts,
+  getPublicImageUrl,
+  listProducts,
+  updateProduct,
+} from '@/lib/products'
+import { supabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { showAdminSuccessToast } from '@/components/admin/adminSuccessToast'
 import type { Product } from '@/types/product'
@@ -19,15 +26,21 @@ import { ImagePlus, Pencil } from 'lucide-react'
 
 type EditProductDialogProps = {
   product: Product
-  onUpdated: () => void
+  onOptimisticUpdate: (productId: string, patch: Product) => () => void
+  onUpdateConfirmed: (product: Product) => void
 }
 
-export function EditProductDialog({ product, onUpdated }: EditProductDialogProps) {
+export function EditProductDialog({
+  product,
+  onOptimisticUpdate,
+  onUpdateConfirmed,
+}: EditProductDialogProps) {
   const [open, setOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [submitPhase, setSubmitPhase] = useState<'upload' | 'save' | null>(null)
+  const inFlightRef = useRef(false)
   const [name, setName] = useState(product.name)
   const [category, setCategory] = useState(product.category)
+  const [brand, setBrand] = useState(product.brand)
+  const [brandOptions, setBrandOptions] = useState<string[]>([])
   const [quantity, setQuantity] = useState(String(product.quantity_in_carton))
   const [image, setImage] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -37,7 +50,13 @@ export function EditProductDialog({ product, onUpdated }: EditProductDialogProps
     if (!open) return
     setName(product.name)
     setCategory(product.category)
+    setBrand(product.brand)
     setQuantity(String(product.quantity_in_carton))
+    if (supabaseConfigured) {
+      void listProducts()
+        .then((rows) => setBrandOptions(distinctBrandsFromProducts(rows)))
+        .catch(() => setBrandOptions([]))
+    }
     setImage(null)
     if (imageInputRef.current) imageInputRef.current.value = ''
     setPreviewUrl(getPublicImageUrl(product.image_path))
@@ -50,43 +69,54 @@ export function EditProductDialog({ product, onUpdated }: EditProductDialogProps
     return () => URL.revokeObjectURL(url)
   }, [image])
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (inFlightRef.current) return
     const qty = Number.parseInt(quantity, 10)
     if (!name.trim() || !category.trim() || Number.isNaN(qty) || qty < 0) {
       toast.error('Fill in all fields with valid values.')
       return
     }
 
-    setSubmitting(true)
-    setSubmitPhase('upload')
-    try {
-      await updateProduct(
-        product.id,
-        {
-          name,
-          category,
-          quantityInCarton: qty,
-          image,
-        },
-        { onPhase: setSubmitPhase },
-      )
-      showAdminSuccessToast({ action: 'edited', productKey: product.product_key })
-      setOpen(false)
-      onUpdated()
-    } catch (err) {
-      toast.error(formatLoadError(err, 'Could not update product.'))
-    } finally {
-      setSubmitting(false)
-      setSubmitPhase(null)
-    }
-  }
+    const imageFile = image
+    const optimisticImagePath =
+      imageFile && previewUrl ? previewUrl : product.image_path
 
-  const submitLabel = submitting
-    ? submitPhase === 'save'
-      ? 'Saving…'
-      : 'Uploading image…'
-    : 'Save changes'
+    const optimistic: Product = {
+      ...product,
+      name: name.trim(),
+      category: category.trim(),
+      brand: brand.trim(),
+      quantity_in_carton: qty,
+      image_path: optimisticImagePath,
+    }
+
+    inFlightRef.current = true
+    const revert = onOptimisticUpdate(product.id, optimistic)
+    setOpen(false)
+
+    void updateProduct(
+      product.id,
+      {
+        name,
+        category,
+        brand,
+        quantityInCarton: qty,
+        image: imageFile,
+      },
+    )
+      .then((updated) => {
+        onUpdateConfirmed(updated)
+        showAdminSuccessToast({ action: 'edited', productKey: updated.product_key })
+      })
+      .catch((err) => {
+        revert()
+        toast.error(formatLoadError(err, 'Could not update product.'))
+      })
+      .finally(() => {
+        inFlightRef.current = false
+      })
+  }
 
   return (
     <>
@@ -111,7 +141,7 @@ export function EditProductDialog({ product, onUpdated }: EditProductDialogProps
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor={`edit-name-${product.id}`}>Name</Label>
+                <Label htmlFor={`edit-name-${product.id}`}>completion</Label>
                 <Input
                   id={`edit-name-${product.id}`}
                   value={name}
@@ -119,6 +149,12 @@ export function EditProductDialog({ product, onUpdated }: EditProductDialogProps
                   required
                 />
               </div>
+              <BrandCombobox
+                id={`edit-brand-${product.id}`}
+                value={brand}
+                onChange={setBrand}
+                brands={brandOptions}
+              />
               <div className="grid gap-2">
                 <Label htmlFor={`edit-qty-${product.id}`}>Quantity inside carton</Label>
                 <Input
@@ -168,9 +204,7 @@ export function EditProductDialog({ product, onUpdated }: EditProductDialogProps
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={submitting}>
-                {submitLabel}
-              </Button>
+              <Button type="submit">Save changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>

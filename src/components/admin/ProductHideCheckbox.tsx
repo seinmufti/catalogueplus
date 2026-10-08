@@ -39,13 +39,13 @@ export function ProductHideCheckbox({
   }
 
   return (
-    <div className="flex justify-center">
+    <label className="flex min-h-14 w-full cursor-pointer items-center justify-center">
       <Checkbox
         aria-label="Hide from customer catalogue"
         checked={hidden}
         className="size-6 border-neutral-600 dark:border-neutral-400 data-checked:border-primary [&_[data-slot=checkbox-indicator]_svg]:size-4"
         onCheckedChange={(checked) => void handleChange(checked)}
       />
-    </div>
+    </label>
   )
 }

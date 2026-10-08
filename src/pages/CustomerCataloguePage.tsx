@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { StoreLogo } from '@/components/StoreLogo'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { DUMMY_PRODUCT_COUNT } from '@/lib/dummyProduct'
 import { formatLoadError, isProductsTableMissingError } from '@/lib/errors'
+import { productDisplayTitle } from '@/lib/productDisplayTitle'
 import { getPublicImageUrl, listCatalogueProducts } from '@/lib/products'
 import { supabaseConfigured } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 import type { Product } from '@/types/product'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-const PAGE_SIZE = 9
+const GRID_ROWS = DUMMY_PRODUCT_COUNT / 2
 
 export function CustomerCataloguePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState(0)
 
   const load = useCallback(async () => {
     if (!supabaseConfigured) {
@@ -41,33 +41,25 @@ export function CustomerCataloguePage() {
     void load()
   }, [load])
 
-  const pageCount = Math.max(1, Math.ceil(products.length / PAGE_SIZE))
-
-  useEffect(() => {
-    if (page > pageCount - 1) setPage(Math.max(0, pageCount - 1))
-  }, [page, pageCount])
-
-  const pageProducts = useMemo(() => {
-    const start = page * PAGE_SIZE
-    return products.slice(start, start + PAGE_SIZE)
-  }, [page, products])
+  const rowCount = Math.ceil(products.length / 2)
+  const fitsOneScreen = products.length > 0 && products.length <= DUMMY_PRODUCT_COUNT
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 items-center justify-center gap-2 border-b px-3 py-2">
-        <StoreLogo className="h-12 w-auto shrink-0" />
-        <h1 className="text-sm font-semibold tracking-tight">Aksesuarat Ali</h1>
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <header className="flex shrink-0 items-center justify-center gap-3 border-b bg-background px-3 py-2.5">
+        <StoreLogo className="h-11 w-auto shrink-0" />
+        <h1 className="text-base font-semibold tracking-tight">Aksesuarat Ali</h1>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col px-2 py-2">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pt-1 pb-1">
         {!supabaseConfigured && (
-          <div className="p-2">
+          <div className="shrink-0 p-1">
             <SupabaseConfigNotice />
           </div>
         )}
 
         {error && (
-          <p className="px-1 py-2 text-center text-xs text-destructive" role="alert">
+          <p className="shrink-0 px-1 py-1 text-center text-xs text-destructive" role="alert">
             {error}
           </p>
         )}
@@ -84,67 +76,66 @@ export function CustomerCataloguePage() {
           </p>
         )}
 
-        {!loading && pageProducts.length > 0 && (
-          <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-3 gap-1.5">
-            {pageProducts.map((product) => {
-              const imageUrl = getPublicImageUrl(product.image_path)
-              return (
-                <Card key={product.id} className="min-h-0 gap-0 py-0 shadow-none">
-                  <CardContent className="flex h-full flex-col p-1.5">
-                    <div className="relative mb-1 aspect-square w-full overflow-hidden rounded-md bg-muted">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={product.name}
-                          className="size-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex size-full items-center justify-center text-[10px] text-muted-foreground">
-                          No image
+        {!loading && products.length > 0 && (
+          <div
+            className={cn(
+              'min-h-0 flex-1',
+              fitsOneScreen
+                ? 'overflow-hidden'
+                : 'overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]',
+            )}
+          >
+            <div
+              className={cn(
+                'grid h-full grid-cols-2 gap-1.5',
+                fitsOneScreen && 'customer-product-grid-fit',
+              )}
+              style={
+                fitsOneScreen
+                  ? undefined
+                  : {
+                      gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))`,
+                      minHeight: `${(rowCount / GRID_ROWS) * 100}%`,
+                    }
+              }
+            >
+              {products.map((product) => {
+                const imageUrl = getPublicImageUrl(product.image_path)
+                const displayName = productDisplayTitle(product.category, product.name)
+                return (
+                  <Card
+                    key={product.id}
+                    className="flex h-full min-h-0 flex-col gap-0 py-0 shadow-none"
+                  >
+                    <CardContent className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-1 p-1.5">
+                      <div className="flex min-h-0 items-center justify-center overflow-hidden">
+                        <div className="aspect-[5/4] w-[76%] max-w-full overflow-hidden rounded-md bg-muted">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={displayName}
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+                              No image
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <p className="line-clamp-2 text-[10px] leading-tight font-medium">
-                      {product.name}
-                    </p>
-                    <p className="truncate text-[9px] text-muted-foreground">{product.category}</p>
-                    <p className="mt-auto text-[9px] tabular-nums text-muted-foreground">
-                      {product.quantity_in_carton} / carton
-                    </p>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-
-        {products.length > PAGE_SIZE && (
-          <div className="mt-2 flex shrink-0 items-center justify-between gap-2 border-t pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 flex-1"
-              disabled={page <= 0}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              <ChevronLeft className="size-4" />
-              Prev
-            </Button>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
-              {page + 1} / {pageCount}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 flex-1"
-              disabled={page >= pageCount - 1}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-              <ChevronRight className="size-4" />
-            </Button>
+                      </div>
+                      <div className="space-y-0.5 pb-0.5">
+                        <p className="line-clamp-2 text-sm leading-snug font-medium">
+                          {displayName}
+                        </p>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          {product.quantity_in_carton} / carton
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

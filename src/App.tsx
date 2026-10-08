@@ -29,15 +29,22 @@ function LegacyCataloguePlusRedirect() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/admin" element={<Navigate to={adminPath()} replace />} />
-        <Route path="/catalogueplus/:storeSlug" element={<LegacyCataloguePlusRedirect />} />
-        <Route path="/:storeSlug/admin" element={<StoreAdminRoute />} />
-        <Route path="/:storeSlug" element={<StoreCatalogueRoute />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <Toaster richColors position="bottom-center" closeButton />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/admin" element={<Navigate to={adminPath()} replace />} />
+          <Route path="/catalogueplus/:storeSlug" element={<LegacyCataloguePlusRedirect />} />
+          <Route path="/:storeSlug/admin" element={<StoreAdminRoute />} />
+          <Route path="/:storeSlug" element={<StoreCatalogueRoute />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+      <Toaster
+        richColors
+        position="bottom-center"
+        closeButton
+        offset="max(12px, env(safe-area-inset-bottom, 0px))"
+      />
     </BrowserRouter>
   )
 }

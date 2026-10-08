@@ -18,6 +18,7 @@ const migrationPaths = [
   path.join(root, 'supabase', 'migrations', '002_products_revealed.sql'),
   path.join(root, 'supabase', 'migrations', '003_products_unique_name.sql'),
   path.join(root, 'supabase', 'migrations', '004_product_key.sql'),
+  path.join(root, 'supabase', 'migrations', '005_products_brand.sql'),
 ]
 
 const token = process.env.SUPABASE_ACCESS_TOKEN

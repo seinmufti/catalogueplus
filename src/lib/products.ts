@@ -9,6 +9,14 @@ import {
   removeProductFromHiddenStorage,
   setProductHiddenInStorage,
 } from '@/lib/productVisibility'
+import { isBrandColumnMissingError } from '@/lib/productBrand'
+import { clearBrandColumnCache, hasBrandColumn } from '@/lib/productBrandColumn'
+import {
+  applyStorageBrands,
+  readProductBrands,
+  removeProductBrandFromStorage,
+  setProductBrandInStorage,
+} from '@/lib/productBrandStorage'
 import { hasProductKeyColumn } from '@/lib/productKeyColumn'
 import { isProductKeyColumnMissingError } from '@/lib/productKey'
 import {
@@ -65,9 +73,24 @@ function extensionFromFile(file: File): string {
 
 export function getPublicImageUrl(imagePath: string | null): string | null {
   if (!imagePath) return null
+  if (imagePath.startsWith('blob:') || imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
   const client = assertSupabase()
   const { data } = client.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(imagePath)
   return data.publicUrl
+}
+
+export function distinctCategoriesFromProducts(products: Product[]): string[] {
+  const unique = [...new Set(products.map((p) => p.category.trim()).filter(Boolean))]
+  unique.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  return unique
+}
+
+export function distinctBrandsFromProducts(products: Product[]): string[] {
+  const unique = [...new Set(products.map((p) => p.brand.trim()).filter(Boolean))]
+  unique.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  return unique
 }
 
 function normalizeProductRow(row: Record<string, unknown>): Product {
@@ -76,8 +99,10 @@ function normalizeProductRow(row: Record<string, unknown>): Product {
     typeof rest.product_key === 'string' && rest.product_key.length > 0
       ? rest.product_key
       : '????'
+  const brand = typeof rest.brand === 'string' ? rest.brand : ''
   return {
-    ...(rest as Omit<Product, 'hidden' | 'product_key'>),
+    ...(rest as Omit<Product, 'hidden' | 'product_key' | 'brand'>),
+    brand,
     product_key,
     hidden: false,
   }
@@ -102,6 +127,10 @@ async function attachProductKeys(client: ReturnType<typeof assertSupabase>, rows
     const withKeys = await applyStorageProductKeys(client, products)
     products = withKeys.map((p) => normalizeProductRow(p as Record<string, unknown>))
     products.sort((a, b) => a.product_key.localeCompare(b.product_key))
+  }
+
+  if (!(await hasBrandColumn(client))) {
+    products = applyStorageBrands(products, await readProductBrands(client))
   }
 
   return withHiddenState(products)
@@ -156,6 +185,8 @@ export async function createProduct(
 
   options?.onPhase?.('save')
   const useDbKeys = await hasProductKeyColumn(client)
+  const brandValue = input.brand.trim()
+  const useBrandColumn = await hasBrandColumn(client)
 
   const row: Record<string, unknown> = {
     name: trimmedName,
@@ -163,6 +194,7 @@ export async function createProduct(
     quantity_in_carton: input.quantityInCarton,
     image_path: objectPath,
   }
+  if (useBrandColumn) row.brand = brandValue
 
   let product_key: string | undefined
   if (useDbKeys) {
@@ -175,6 +207,12 @@ export async function createProduct(
   if (error && useDbKeys && isProductKeyColumnMissingError(error)) {
     delete row.product_key
     product_key = undefined
+    ;({ data, error } = await client.from('products').insert(row).select('*').single())
+  }
+
+  if (error && isBrandColumnMissingError(error)) {
+    clearBrandColumnCache()
+    delete row.brand
     ;({ data, error } = await client.from('products').insert(row).select('*').single())
   }
 
@@ -191,6 +229,11 @@ export async function createProduct(
     product_key = await allocateNextProductKeyCounter(client, product.id)
   }
   product = { ...product, product_key: product_key ?? product.product_key }
+
+  if (!(await hasBrandColumn(client))) {
+    await setProductBrandInStorage(client, product.id, brandValue)
+  }
+  product = { ...product, brand: brandValue || product.brand }
 
   return product
 }
@@ -241,17 +284,34 @@ export async function updateProduct(
   }
 
   options?.onPhase?.('save')
-  const { data, error } = await client
+  const brandValue = input.brand.trim()
+  const useBrandColumn = await hasBrandColumn(client)
+
+  const patch: Record<string, unknown> = {
+    name: trimmedName,
+    category: input.category.trim(),
+    quantity_in_carton: input.quantityInCarton,
+    image_path: imagePath,
+  }
+  if (useBrandColumn) patch.brand = brandValue
+
+  let { data, error } = await client
     .from('products')
-    .update({
-      name: trimmedName,
-      category: input.category.trim(),
-      quantity_in_carton: input.quantityInCarton,
-      image_path: imagePath,
-    })
+    .update(patch)
     .eq('id', id)
     .select('*')
     .single()
+
+  if (error && isBrandColumnMissingError(error)) {
+    clearBrandColumnCache()
+    delete patch.brand
+    ;({ data, error } = await client
+      .from('products')
+      .update(patch)
+      .eq('id', id)
+      .select('*')
+      .single())
+  }
 
   if (error) {
     if (uploadedPath) {
@@ -268,6 +328,10 @@ export async function updateProduct(
   const updated = normalizeProductRow(data as Record<string, unknown>)
   updated.hidden = current.hidden
   updated.product_key = current.product_key
+  if (!(await hasBrandColumn(client))) {
+    await setProductBrandInStorage(client, id, brandValue)
+  }
+  updated.brand = brandValue || updated.brand
   return updated
 }
 
@@ -285,6 +349,7 @@ export async function deleteProduct(id: string): Promise<void> {
   if (error) throw error
 
   await removeProductFromHiddenStorage(client, id)
+  await removeProductBrandFromStorage(client, id)
 
   if (!(await hasProductKeyColumn(client))) {
     await removeStorageProductKey(client, id)

@@ -16,26 +16,29 @@ import { Trash2 } from 'lucide-react'
 
 type DeleteProductButtonProps = {
   product: Product
-  onDeleted: () => void
+  onOptimisticDelete: (productId: string) => () => void
   onSuccess?: (detail: AdminSuccessDetail) => void
 }
 
-export function DeleteProductButton({ product, onDeleted, onSuccess }: DeleteProductButtonProps) {
+export function DeleteProductButton({
+  product,
+  onOptimisticDelete,
+  onSuccess,
+}: DeleteProductButtonProps) {
   const [open, setOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
-  async function confirmDelete() {
-    setDeleting(true)
-    try {
-      await deleteProduct(product.id)
-      onSuccess?.({ action: 'deleted', productKey: product.product_key })
-      setOpen(false)
-      onDeleted()
-    } catch (err) {
-      toast.error(formatLoadError(err, 'Could not delete product.'))
-    } finally {
-      setDeleting(false)
-    }
+  function confirmDelete() {
+    const revert = onOptimisticDelete(product.id)
+    setOpen(false)
+
+    void deleteProduct(product.id)
+      .then(() => {
+        onSuccess?.({ action: 'deleted', productKey: product.product_key })
+      })
+      .catch((err) => {
+        revert()
+        toast.error(formatLoadError(err, 'Could not delete product.'))
+      })
   }
 
   return (
@@ -54,11 +57,11 @@ export function DeleteProductButton({ product, onDeleted, onSuccess }: DeletePro
             catalogue? This cannot be undone.
           </p>
           <DialogFooter className="gap-2 sm:justify-end">
-            <Button type="button" variant="outline" disabled={deleting} onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" variant="destructive" disabled={deleting} onClick={() => void confirmDelete()}>
-              {deleting ? 'Deleting…' : 'Delete'}
+            <Button type="button" variant="destructive" onClick={confirmDelete}>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -9,39 +9,66 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { BrandCombobox, CategoryCombobox } from '@/components/admin/CategoryCombobox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
-import { nextDummyProductFields } from '@/lib/dummyProduct'
-import { createProduct } from '@/lib/products'
+import { loadDummyProductImage, nextDummyProductFields } from '@/lib/dummyProduct'
+import { formatLoadError } from '@/lib/errors'
+import {
+  createOptimisticProductId,
+  estimateNextProductKey,
+} from '@/lib/optimisticProduct'
+import {
+  createProduct,
+  distinctBrandsFromProducts,
+  distinctCategoriesFromProducts,
+  listProducts,
+} from '@/lib/products'
 import { supabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import type { Product } from '@/types/product'
 import { ImagePlus, Plus } from 'lucide-react'
 
 type AddProductDialogProps = {
-  onCreated: () => void
+  products: Product[]
+  onOptimisticCreate: (product: Product) => void
+  onCreateConfirmed: (tempId: string, product: Product) => void
+  onCreateFailed: (tempId: string) => void
   onSuccess?: (detail: AdminSuccessDetail) => void
 }
 
-const DUMMY_PRODUCT_IMAGE_URL = '/dummy-product.jpg'
-
-async function loadDummyProductImage(): Promise<File> {
-  const res = await fetch(DUMMY_PRODUCT_IMAGE_URL)
-  if (!res.ok) throw new Error('Could not load dummy image.')
-  const blob = await res.blob()
-  return new File([blob], 'dummy-product.jpg', { type: blob.type || 'image/jpeg' })
-}
-
-export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps) {
+export function AddProductDialog({
+  products,
+  onOptimisticCreate,
+  onCreateConfirmed,
+  onCreateFailed,
+  onSuccess,
+}: AddProductDialogProps) {
   const [open, setOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [submitPhase, setSubmitPhase] = useState<'upload' | 'save' | null>(null)
+  const inFlightRef = useRef(false)
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
+  const [brand, setBrand] = useState('')
   const [quantity, setQuantity] = useState('')
   const [image, setImage] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([])
+  const [brandOptions, setBrandOptions] = useState<string[]>([])
   const imageInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!open || !supabaseConfigured) return
+    void listProducts()
+      .then((rows) => {
+        setCategoryOptions(distinctCategoriesFromProducts(rows))
+        setBrandOptions(distinctBrandsFromProducts(rows))
+      })
+      .catch(() => {
+        setCategoryOptions([])
+        setBrandOptions([])
+      })
+  }, [open])
 
   useEffect(() => {
     if (!image) {
@@ -56,6 +83,7 @@ export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps
   function resetForm() {
     setName('')
     setCategory('')
+    setBrand('')
     setQuantity('')
     setImage(null)
     if (imageInputRef.current) imageInputRef.current.value = ''
@@ -81,8 +109,9 @@ export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (inFlightRef.current) return
     if (!supabaseConfigured) {
       toast.error('Supabase is not configured.')
       return
@@ -97,45 +126,50 @@ export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps
       return
     }
 
-    setSubmitting(true)
-    setSubmitPhase('upload')
-    try {
-      const created = await createProduct(
-        {
-          name,
-          category,
-          quantityInCarton: qty,
-          image,
-        },
-        { onPhase: setSubmitPhase },
-      )
-      onSuccess?.({ action: 'added', productKey: created.product_key })
-      resetForm()
-      setOpen(false)
-      onCreated()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not add product.'
-      toast.error(message)
-    } finally {
-      setSubmitting(false)
-      setSubmitPhase(null)
+    const imageFile = image
+    const optimisticPreview = URL.createObjectURL(imageFile)
+    const tempId = createOptimisticProductId()
+    const optimistic: Product = {
+      id: tempId,
+      product_key: estimateNextProductKey(products),
+      name: name.trim(),
+      category: category.trim(),
+      brand: brand.trim(),
+      quantity_in_carton: qty,
+      image_path: optimisticPreview,
+      hidden: false,
+      created_at: new Date().toISOString(),
     }
+
+    inFlightRef.current = true
+    onOptimisticCreate(optimistic)
+    resetForm()
+    setOpen(false)
+
+    void createProduct({
+      name,
+      category,
+      brand,
+      quantityInCarton: qty,
+      image: imageFile,
+    })
+      .then((created) => {
+        onCreateConfirmed(tempId, created)
+        onSuccess?.({ action: 'added', productKey: created.product_key })
+        URL.revokeObjectURL(optimisticPreview)
+      })
+      .catch((err) => {
+        onCreateFailed(tempId)
+        URL.revokeObjectURL(optimisticPreview)
+        toast.error(formatLoadError(err, 'Could not add product.'))
+      })
+      .finally(() => {
+        inFlightRef.current = false
+      })
   }
 
-  const submitLabel = submitting
-    ? submitPhase === 'save'
-      ? 'Saving…'
-      : 'Uploading image…'
-    : 'Save product'
-
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next)
-        if (!next) resetForm()
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         disabled={!supabaseConfigured}
         className={buttonVariants({
@@ -153,17 +187,15 @@ export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps
             <DialogTitle>Add product</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <CategoryCombobox
+              id="product-category"
+              value={category}
+              onChange={setCategory}
+              categories={categoryOptions}
+              required
+            />
             <div className="grid gap-2">
-              <Label htmlFor="product-category">Category</Label>
-              <Input
-                id="product-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="product-name">Name</Label>
+              <Label htmlFor="product-name">completion</Label>
               <Input
                 id="product-name"
                 value={name}
@@ -171,6 +203,12 @@ export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps
                 required
               />
             </div>
+            <BrandCombobox
+              id="product-brand"
+              value={brand}
+              onChange={setBrand}
+              brands={brandOptions}
+            />
             <div className="grid gap-2">
               <Label htmlFor="product-qty">Quantity inside carton</Label>
               <Input
@@ -224,17 +262,15 @@ export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps
             </div>
           </div>
           <DialogFooter className="sm:justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={submitting}
-              onClick={() => void fillDummyForm()}
-            >
+            <Button type="button" variant="outline" onClick={() => void fillDummyForm()}>
               Dummy
             </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitLabel}
-            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="destructive" onClick={resetForm}>
+                Reset
+              </Button>
+              <Button type="submit">Save product</Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

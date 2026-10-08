@@ -7,6 +7,7 @@ export type BackupProductRecord = {
   product_key: string
   name: string
   category: string
+  brand: string
   quantity_in_carton: number
   hidden: boolean
   created_at: string
@@ -79,6 +80,7 @@ function toBackupRecord(product: Product, imageFile: string | null): BackupProdu
     product_key: product.product_key,
     name: product.name,
     category: product.category,
+    brand: product.brand,
     quantity_in_carton: product.quantity_in_carton,
     hidden: product.hidden,
     created_at: product.created_at,

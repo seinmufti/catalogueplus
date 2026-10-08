@@ -60,7 +60,7 @@ The migration enables **open RLS** for MVP (no admin login). Anyone with the ano
 
 - [ ] With `.env.local` configured, admin loads the product table.
 - [ ] **Add product** uploads an image and inserts a row; table refreshes.
-- [ ] Customer route shows products in a **3×3** grid; page 2 appears when there are more than 9 items.
+- [ ] Customer route shows products in a **2-column** grid with **vertical scroll**.
 - [ ] `/aksesuaratali/admin` on a narrow viewport (or mobile) shows “Only available on PC”.
 - [ ] Customer route on desktop shows a **390×844** rectangular frame.
 - [ ] Starting dev while port 5176 is in use fails loudly (`strictPort`).
