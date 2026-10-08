@@ -13,16 +13,16 @@ const whatsappButtonClass = `${filledBase} min-w-0 flex-1 bg-[#25D366] text-sm t
 
 const tiktokButtonClass = `${filledBase} w-full bg-black text-base text-white hover:bg-neutral-900 active:bg-neutral-950`
 
-/** Overlay footer — customer catalogue + admin phone preview. */
+/** In-flow footer — customer catalogue + admin phone preview. */
 export function CustomerCatalogueFooter() {
   return (
     <footer
       dir="ltr"
       lang="en"
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-2"
+      className="w-full shrink-0 px-2 pt-1"
       style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom, 0px))' }}
     >
-      <div className="pointer-events-auto mx-auto flex w-full max-w-md min-h-[calc(2svh+2.75rem)] flex-col rounded-t-xl border border-b-0 border-border/80 bg-background/94 px-3 py-[calc(0.625rem+1svh)] shadow-[0_-10px_28px_rgb(0_0_0/0.1)] backdrop-blur-md">
+      <div className="mx-auto flex w-full max-w-md min-h-[calc(2svh+2.75rem)] flex-col rounded-t-xl border border-border/80 bg-background px-3 py-[calc(0.625rem+1svh)] shadow-[0_-4px_16px_rgb(0_0_0/0.06)]">
         <div className="flex min-h-0 flex-1 w-full flex-col justify-evenly gap-2">
           <div className="flex w-full items-stretch gap-2">
             {STORE_WHATSAPP_LINES.map((line) => (
