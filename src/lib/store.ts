@@ -3,8 +3,12 @@ export const STORE_SLUG = 'aksesuaratali'
 
 export const STORE_DISPLAY_NAME = 'Aksesuarat Ali'
 
-export const STORE_WHATSAPP_DISPLAY = '+964 750 740 8282'
-export const STORE_WHATSAPP_URL = 'https://wa.me/9647507408282'
+export type StoreWhatsAppLine = { display: string; url: string }
+
+export const STORE_WHATSAPP_LINES: StoreWhatsAppLine[] = [
+  { display: '+964 750 740 8282', url: 'https://wa.me/9647507408282' },
+  { display: '+964 772 740 8282', url: 'https://wa.me/9647727408282' },
+]
 
 export const STORE_TIKTOK_URL = 'https://www.tiktok.com/@aksesuaratali01'
 export const STORE_TIKTOK_HANDLE = '@aksesuaratali01'

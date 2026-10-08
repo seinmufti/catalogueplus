@@ -53,7 +53,7 @@ export function CustomerCataloguePage() {
     >
       <CustomerCatalogueHeader />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pt-1 pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pt-1 pb-[calc(3.75rem+2svh+env(safe-area-inset-bottom,0px))]">
         {!supabaseConfigured && (
           <div className="shrink-0 p-1">
             <SupabaseConfigNotice />

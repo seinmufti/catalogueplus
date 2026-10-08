@@ -1,16 +1,17 @@
 import { TikTokIcon } from '@/components/icons/TikTokIcon'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
-import { StoreLogo } from '@/components/StoreLogo'
 import {
-  STORE_DISPLAY_NAME,
   STORE_TIKTOK_HANDLE,
   STORE_TIKTOK_URL,
-  STORE_WHATSAPP_DISPLAY,
-  STORE_WHATSAPP_URL,
+  STORE_WHATSAPP_LINES,
 } from '@/lib/store'
 
-const linkClass =
-  'inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const filledBase =
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 font-semibold tabular-nums no-underline shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98]'
+
+const whatsappButtonClass = `${filledBase} min-w-0 flex-1 bg-[#25D366] text-sm text-white hover:bg-[#20bd5a] active:bg-[#1da851] sm:text-base`
+
+const tiktokButtonClass = `${filledBase} w-full bg-black text-base text-white hover:bg-neutral-900 active:bg-neutral-950`
 
 /** Overlay footer — customer catalogue + admin phone preview. */
 export function CustomerCatalogueFooter() {
@@ -21,32 +22,33 @@ export function CustomerCatalogueFooter() {
       className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-2"
       style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom, 0px))' }}
     >
-      <div className="pointer-events-auto mx-auto w-full max-w-md rounded-t-xl border border-b-0 border-border/80 bg-background/94 px-3 py-2.5 shadow-[0_-10px_28px_rgb(0_0_0/0.1)] backdrop-blur-md">
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-2 text-center">
-          <a
-            href={STORE_WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={linkClass}
-            aria-label={`WhatsApp ${STORE_WHATSAPP_DISPLAY}`}
-          >
-            <WhatsAppIcon className="size-5 shrink-0" />
-            <span>{STORE_WHATSAPP_DISPLAY}</span>
-          </a>
+      <div className="pointer-events-auto mx-auto flex w-full max-w-md min-h-[calc(2svh+2.75rem)] flex-col rounded-t-xl border border-b-0 border-border/80 bg-background/94 px-3 py-[calc(0.625rem+1svh)] shadow-[0_-10px_28px_rgb(0_0_0/0.1)] backdrop-blur-md">
+        <div className="flex min-h-0 flex-1 w-full flex-col justify-evenly gap-2">
+          <div className="flex w-full items-stretch gap-2">
+            {STORE_WHATSAPP_LINES.map((line) => (
+              <a
+                key={line.url}
+                href={line.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={whatsappButtonClass}
+                aria-label={`WhatsApp ${line.display}`}
+              >
+                <WhatsAppIcon className="size-5 shrink-0 text-white sm:size-6" />
+                <span className="whitespace-nowrap">{line.display}</span>
+              </a>
+            ))}
+          </div>
           <a
             href={STORE_TIKTOK_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className={linkClass}
+            className={tiktokButtonClass}
             aria-label={`TikTok ${STORE_TIKTOK_HANDLE}`}
           >
-            <TikTokIcon className="size-5 shrink-0" />
-            <span>{STORE_TIKTOK_HANDLE}</span>
+            <TikTokIcon className="size-6 shrink-0" />
+            <span className="whitespace-nowrap">{STORE_TIKTOK_HANDLE}</span>
           </a>
-        </div>
-        <div className="flex items-center justify-center gap-2.5 border-t border-border/60 pt-2">
-          <StoreLogo className="h-9 w-auto shrink-0" />
-          <span className="text-left text-base font-semibold tracking-tight">{STORE_DISPLAY_NAME}</span>
         </div>
       </div>
     </footer>
