@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CustomerCatalogueFooter } from '@/components/customer/CustomerCatalogueFooter'
 import { CustomerCatalogueHeader } from '@/components/customer/CustomerCatalogueHeader'
 import { CustomerCategorySection } from '@/components/customer/CustomerCategorySection'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
@@ -48,11 +49,11 @@ export function CustomerCataloguePage() {
     <div
       dir="rtl"
       lang="ar"
-      className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden"
     >
       <CustomerCatalogueHeader />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pt-1 pb-1.5">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pt-1 pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))]">
         {!supabaseConfigured && (
           <div className="shrink-0 p-1">
             <SupabaseConfigNotice />
@@ -100,6 +101,8 @@ export function CustomerCataloguePage() {
           </div>
         )}
       </div>
+
+      <CustomerCatalogueFooter />
     </div>
   )
 }
