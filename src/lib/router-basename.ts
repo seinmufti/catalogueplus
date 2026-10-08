@@ -18,3 +18,10 @@ export function getRouterBasename(): string {
 
   return ''
 }
+
+/** Root public files (e.g. /aksesuarat-ali-logo.png) when proxied under /catalogueplus. */
+export function publicAssetPath(path: string): string {
+  const base = getRouterBasename()
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  return `${base}${normalized}`
+}

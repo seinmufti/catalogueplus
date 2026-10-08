@@ -1,3 +1,4 @@
+import { publicAssetPath } from '@/lib/router-basename'
 import { createProduct, listProducts } from '@/lib/products'
 import type { Product } from '@/types/product'
 
@@ -5,7 +6,7 @@ export const DUMMY_PRODUCT_COUNT = 6
 
 const DUMMY_NAME_PREFIX = 'Dummy Name'
 const DUMMY_CATEGORY_PREFIX = 'Dummy Category'
-const DUMMY_PRODUCT_IMAGE_URL = '/dummy-product.jpg'
+const DUMMY_PRODUCT_IMAGE_URL = publicAssetPath('/dummy-product.jpg')
 const NUMBERED_SUFFIX = /\((\d+)\)$/
 const DUPLICATE_NAME_MESSAGE = 'A product with this name already exists.'
 

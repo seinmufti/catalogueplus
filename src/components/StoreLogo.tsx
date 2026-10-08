@@ -1,6 +1,7 @@
+import { publicAssetPath } from '@/lib/router-basename'
 import { cn } from '@/lib/utils'
 
-export const STORE_LOGO_SRC = '/aksesuarat-ali-logo.png'
+export const STORE_LOGO_SRC = publicAssetPath('/aksesuarat-ali-logo.png')
 
 type StoreLogoProps = {
   className?: string
