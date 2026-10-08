@@ -1,16 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CustomerCatalogueHeader } from '@/components/customer/CustomerCatalogueHeader'
+import { CustomerCategorySection } from '@/components/customer/CustomerCategorySection'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
-import { Card, CardContent } from '@/components/ui/card'
 import { DUMMY_PRODUCT_COUNT } from '@/lib/dummyProduct'
 import { formatLoadError, isProductsTableMissingError } from '@/lib/errors'
-import { productDisplayTitle } from '@/lib/productDisplayTitle'
-import { getPublicImageUrl, listCatalogueProducts } from '@/lib/products'
+import { groupProductsByCategory } from '@/lib/groupProductsByCategory'
+import { listCatalogueProducts } from '@/lib/products'
 import { supabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/types/product'
-
-const GRID_ROWS = DUMMY_PRODUCT_COUNT / 2
 
 export function CustomerCataloguePage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -41,14 +39,16 @@ export function CustomerCataloguePage() {
     void load()
   }, [load])
 
-  const rowCount = Math.ceil(products.length / 2)
-  const fitsOneScreen = products.length > 0 && products.length <= DUMMY_PRODUCT_COUNT
+  const categoryGroups = useMemo(() => groupProductsByCategory(products), [products])
+  const multiSection = categoryGroups.length > 1
+  const fitsOneScreen =
+    !multiSection && products.length > 0 && products.length <= DUMMY_PRODUCT_COUNT
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       <CustomerCatalogueHeader />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pt-0.5 pb-1">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pt-1 pb-1.5">
         {!supabaseConfigured && (
           <div className="shrink-0 p-1">
             <SupabaseConfigNotice />
@@ -78,61 +78,21 @@ export function CustomerCataloguePage() {
             className={cn(
               'min-h-0 flex-1',
               fitsOneScreen
-                ? 'overflow-hidden'
-                : 'overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]',
+                ? 'flex flex-col overflow-hidden'
+                : cn(
+                    'overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]',
+                    multiSection ? 'space-y-2.5 py-0.5' : 'py-0.5',
+                  ),
             )}
           >
-            <div
-              className={cn(
-                'grid h-full grid-cols-2 gap-1.5',
-                fitsOneScreen && 'customer-product-grid-fit',
-              )}
-              style={
-                fitsOneScreen
-                  ? undefined
-                  : {
-                      gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))`,
-                      minHeight: `${(rowCount / GRID_ROWS) * 100}%`,
-                    }
-              }
-            >
-              {products.map((product) => {
-                const imageUrl = getPublicImageUrl(product.image_path)
-                const displayName = productDisplayTitle(product.category, product.name)
-                return (
-                  <Card
-                    key={product.id}
-                    className="flex h-full min-h-0 flex-col gap-0 py-0 shadow-none"
-                  >
-                    <CardContent className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-1 p-1.5">
-                      <div className="flex min-h-0 items-center justify-center overflow-hidden">
-                        <div className="aspect-[5/4] w-[76%] max-w-full overflow-hidden rounded-md bg-muted">
-                          {imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={displayName}
-                              className="size-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-                              No image
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-0.5 pb-0.5">
-                        <p className="line-clamp-2 text-sm leading-snug font-medium">
-                          {displayName}
-                        </p>
-                        <p className="text-xs tabular-nums text-muted-foreground">
-                          {product.quantity_in_carton} / carton
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+            {categoryGroups.map((group) => (
+              <CustomerCategorySection
+                key={group.category}
+                group={group}
+                standalone={!multiSection}
+                fillViewport={fitsOneScreen}
+              />
+            ))}
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { StoreLogo } from '@/components/StoreLogo'
 import { AddProductDialog } from '@/components/admin/AddProductDialog'
 import { AdminProductImagePreview } from '@/components/admin/AdminProductImagePreview'
@@ -23,6 +23,7 @@ import {
 import { DatabaseSetupNotice } from '@/components/DatabaseSetupNotice'
 import { useAdminProductMutations } from '@/hooks/useAdminProductMutations'
 import { formatLoadError, isProductsTableMissingError } from '@/lib/errors'
+import { groupProductsByCategory } from '@/lib/groupProductsByCategory'
 import { productDisplayTitle } from '@/lib/productDisplayTitle'
 import { getPublicImageUrl, listProducts } from '@/lib/products'
 import { supabaseConfigured } from '@/lib/supabase'
@@ -98,6 +99,8 @@ export function AdminPage() {
       setSelectedIds(new Set())
     }
   }
+
+  const categoryGroups = useMemo(() => groupProductsByCategory(products), [products])
 
   const selectedProducts = products.filter((p) => selectedIds.has(p.id))
   const selectedCount = selectedProducts.length
@@ -186,78 +189,112 @@ export function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product, index) => {
-                  const rowIndex = index + 1
-                  const imageUrl = getPublicImageUrl(product.image_path)
-                  const selected = selectedIds.has(product.id)
-                  return (
-                    <TableRow key={product.id} data-state={selected ? 'selected' : undefined}>
-                      <TableCell className={CHECKBOX_COLUMN_CLASS}>
-                        <label className={CHECKBOX_CELL_LABEL_CLASS}>
-                          <Checkbox
-                            aria-label={`Select ${product.name}`}
-                            checked={selected}
-                            className={ROW_SELECT_CHECKBOX_CLASS}
-                            onCheckedChange={(checked) =>
-                              setRowSelected(product.id, Boolean(checked))
-                            }
-                          />
-                        </label>
-                      </TableCell>
-                      <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
-                        {rowIndex}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm tabular-nums">{product.product_key}</TableCell>
-                      <TableCell>
-                        {imageUrl ? (
-                          <AdminProductImagePreview
-                            imageUrl={imageUrl}
-                            productCategory={product.category}
-                            productName={product.name}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-normal">{product.category}</TableCell>
-                      <TableCell className="whitespace-normal">{product.name}</TableCell>
-                      <TableCell className="font-medium whitespace-normal">
-                        {productDisplayTitle(product.category, product.name)}
-                      </TableCell>
-                      <TableCell className="whitespace-normal">{product.brand || '—'}</TableCell>
-                      <TableCell className="tabular-nums">
-                        {product.quantity_in_carton}
-                      </TableCell>
-                      <TableCell className={CHECKBOX_COLUMN_CLASS}>
-                        <ProductHideCheckbox
-                          productId={product.id}
-                          productKey={product.product_key}
-                          hidden={product.hidden}
-                          onHiddenChange={handleHiddenChange}
-                          onSuccess={notifySuccess}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center">
-                          <EditProductDialog
-                            product={product}
-                            onOptimisticUpdate={mutations.patchOptimistic}
-                            onUpdateConfirmed={mutations.confirmUpdated}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center">
-                          <DeleteProductButton
-                            product={product}
-                            onOptimisticDelete={mutations.removeOptimistic}
-                            onSuccess={notifySuccess}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
+                {(() => {
+                  let rowIndex = 0
+                  return categoryGroups.flatMap((group) => {
+                    const showGroupHeaders = categoryGroups.length > 1
+                    const headerRow = showGroupHeaders ? (
+                      <TableRow
+                        key={`cat-${group.category}`}
+                        className="border-t-2 border-t-border bg-muted/30 hover:bg-muted/30"
+                      >
+                        <TableCell colSpan={12} className="py-0">
+                          <div className="flex items-center gap-3 py-2.5 pl-1">
+                            <span
+                              className="h-5 w-1 shrink-0 rounded-full bg-primary"
+                              aria-hidden
+                            />
+                            <span className="text-sm font-semibold tracking-tight">
+                              {group.category}
+                            </span>
+                            <span className="rounded-full bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground ring-1 ring-border">
+                              {group.products.length}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : null
+
+                    const productRows = group.products.map((product) => {
+                      rowIndex += 1
+                      const imageUrl = getPublicImageUrl(product.image_path)
+                      const selected = selectedIds.has(product.id)
+                      return (
+                        <TableRow key={product.id} data-state={selected ? 'selected' : undefined}>
+                          <TableCell className={CHECKBOX_COLUMN_CLASS}>
+                            <label className={CHECKBOX_CELL_LABEL_CLASS}>
+                              <Checkbox
+                                aria-label={`Select ${product.name}`}
+                                checked={selected}
+                                className={ROW_SELECT_CHECKBOX_CLASS}
+                                onCheckedChange={(checked) =>
+                                  setRowSelected(product.id, Boolean(checked))
+                                }
+                              />
+                            </label>
+                          </TableCell>
+                          <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
+                            {rowIndex}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm tabular-nums">
+                            {product.product_key}
+                          </TableCell>
+                          <TableCell>
+                            {imageUrl ? (
+                              <AdminProductImagePreview
+                                imageUrl={imageUrl}
+                                productCategory={product.category}
+                                productName={product.name}
+                              />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-normal text-muted-foreground">
+                            {showGroupHeaders ? '—' : product.category}
+                          </TableCell>
+                          <TableCell className="whitespace-normal">{product.name}</TableCell>
+                          <TableCell className="font-medium whitespace-normal">
+                            {productDisplayTitle(product.category, product.name)}
+                          </TableCell>
+                          <TableCell className="whitespace-normal">{product.brand || '—'}</TableCell>
+                          <TableCell className="tabular-nums">
+                            {product.quantity_in_carton}
+                          </TableCell>
+                          <TableCell className={CHECKBOX_COLUMN_CLASS}>
+                            <ProductHideCheckbox
+                              productId={product.id}
+                              productKey={product.product_key}
+                              hidden={product.hidden}
+                              onHiddenChange={handleHiddenChange}
+                              onSuccess={notifySuccess}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-center">
+                              <EditProductDialog
+                                product={product}
+                                onOptimisticUpdate={mutations.patchOptimistic}
+                                onUpdateConfirmed={mutations.confirmUpdated}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-center">
+                              <DeleteProductButton
+                                product={product}
+                                onOptimisticDelete={mutations.removeOptimistic}
+                                onSuccess={notifySuccess}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+
+                    return headerRow ? [headerRow, ...productRows] : productRows
+                  })
+                })()}
               </TableBody>
             </Table>
           </div>
