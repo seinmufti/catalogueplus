@@ -10,10 +10,20 @@ npm run dev
 ```
 
 - Home: [http://localhost:5176/](http://localhost:5176/)
-- Admin: [http://localhost:5176/admin](http://localhost:5176/admin) — blocked on viewports ≤767px
-- Customer: [http://localhost:5176/catalogueplus/aksesuaratali](http://localhost:5176/catalogueplus/aksesuaratali) — phone frame on desktop
+- Customer: [http://localhost:5176/aksesuaratali](http://localhost:5176/aksesuaratali) — phone frame on desktop
+- Admin: [http://localhost:5176/aksesuaratali/admin](http://localhost:5176/aksesuaratali/admin) — blocked on viewports ≤767px
 
 Port is fixed via [`.cursor/designation.json`](.cursor/designation.json) and `strictPort: true` in Vite.
+
+## Production (Vercel)
+
+After deploy, use these paths on [catalogueplus.vercel.app](https://catalogueplus.vercel.app):
+
+- Home: `/`
+- Customer: `/aksesuaratali`
+- Admin: `/aksesuaratali/admin`
+
+Legacy URLs redirect at the edge: `/admin` → admin path, `/catalogueplus/aksesuaratali` → `/aksesuaratali`. SPA routing is handled by [`vercel.json`](vercel.json) rewrites.
 
 ## Supabase setup
 
@@ -51,6 +61,6 @@ The migration enables **open RLS** for MVP (no admin login). Anyone with the ano
 - [ ] With `.env.local` configured, admin loads the product table.
 - [ ] **Add product** uploads an image and inserts a row; table refreshes.
 - [ ] Customer route shows products in a **3×3** grid; page 2 appears when there are more than 9 items.
-- [ ] `/admin` on a narrow viewport (or mobile) shows “Only available on PC”.
+- [ ] `/aksesuaratali/admin` on a narrow viewport (or mobile) shows “Only available on PC”.
 - [ ] Customer route on desktop shows a **390×844** rectangular frame.
 - [ ] Starting dev while port 5176 is in use fails loudly (`strictPort`).

@@ -3,8 +3,22 @@ import {
   supabase,
   supabaseConfigError,
 } from '@/lib/supabase'
+import {
+  applyHiddenFlags,
+  readHiddenProductIds,
+  removeProductFromHiddenStorage,
+  setProductHiddenInStorage,
+} from '@/lib/productVisibility'
+import { hasProductKeyColumn } from '@/lib/productKeyColumn'
+import { isProductKeyColumnMissingError } from '@/lib/productKey'
+import {
+  allocateNextProductKey as allocateNextProductKeyCounter,
+  applyStorageProductKeys,
+  removeStorageProductKey,
+  syncProductKeyCounter,
+} from '@/lib/productKeyStorage'
 import { prepareProductImage } from '@/lib/prepareProductImage'
-import type { NewProductInput, Product } from '@/types/product'
+import type { NewProductInput, Product, UpdateProductInput } from '@/types/product'
 
 export type CreateProductPhase = 'upload' | 'save'
 
@@ -27,16 +41,17 @@ function isDuplicateNameError(err: unknown): boolean {
   return e.code === '23505' || (e.message?.includes('products_name_unique') ?? false)
 }
 
-async function assertNameAvailable(name: string, client: ReturnType<typeof assertSupabase>): Promise<void> {
+async function assertNameAvailable(
+  name: string,
+  client: ReturnType<typeof assertSupabase>,
+  excludeProductId?: string,
+): Promise<void> {
   const trimmed = name.trim()
-  const { data, error } = await client
-    .from('products')
-    .select('id')
-    .eq('name', trimmed)
-    .maybeSingle()
+  const { data, error } = await client.from('products').select('id').eq('name', trimmed)
 
   if (error) throw error
-  if (data) throw new Error(DUPLICATE_NAME_MESSAGE)
+  const taken = (data ?? []).some((row) => row.id !== excludeProductId)
+  if (taken) throw new Error(DUPLICATE_NAME_MESSAGE)
 }
 
 function extensionFromFile(file: File): string {
@@ -55,41 +70,65 @@ export function getPublicImageUrl(imagePath: string | null): string | null {
   return data.publicUrl
 }
 
-function normalizeProduct(row: Record<string, unknown>): Product {
+function normalizeProductRow(row: Record<string, unknown>): Product {
+  const { revealed: _legacy, ...rest } = row
+  const product_key =
+    typeof rest.product_key === 'string' && rest.product_key.length > 0
+      ? rest.product_key
+      : '????'
   return {
-    ...(row as Product),
-    revealed: row.revealed === false ? false : true,
+    ...(rest as Omit<Product, 'hidden' | 'product_key'>),
+    product_key,
+    hidden: false,
   }
+}
+
+async function withHiddenState(products: Product[]): Promise<Product[]> {
+  const client = assertSupabase()
+  const hiddenIds = await readHiddenProductIds(client)
+  return applyHiddenFlags(products, hiddenIds)
+}
+
+async function attachProductKeys(client: ReturnType<typeof assertSupabase>, rows: Record<string, unknown>[]) {
+  const useDbKeys = await hasProductKeyColumn(client)
+  let products = rows.map((row) => normalizeProductRow(row))
+
+  if (useDbKeys) {
+    await syncProductKeyCounter(
+      client,
+      products.map((p) => p.product_key).filter((k) => k !== '????'),
+    )
+  } else {
+    const withKeys = await applyStorageProductKeys(client, products)
+    products = withKeys.map((p) => normalizeProductRow(p as Record<string, unknown>))
+    products.sort((a, b) => a.product_key.localeCompare(b.product_key))
+  }
+
+  return withHiddenState(products)
 }
 
 export async function listProducts(): Promise<Product[]> {
   const client = assertSupabase()
+  const useDbKeys = await hasProductKeyColumn(client)
+
   const { data, error } = await client
     .from('products')
     .select('*')
-    .order('created_at', { ascending: false })
+    .order(useDbKeys ? 'product_key' : 'created_at', { ascending: true })
 
   if (error) throw error
-  return (data ?? []).map((row) => normalizeProduct(row as Record<string, unknown>))
+  return attachProductKeys(client, (data ?? []) as Record<string, unknown>[])
 }
 
-/** Products visible on the customer catalogue (`revealed = true`). */
+/** Products visible on the customer catalogue (not hidden). */
 export async function listCatalogueProducts(): Promise<Product[]> {
-  const client = assertSupabase()
-  const { data, error } = await client
-    .from('products')
-    .select('*')
-    .eq('revealed', true)
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data ?? []).map((row) => normalizeProduct(row as Record<string, unknown>))
+  const all = await listProducts()
+  return all.filter((p) => !p.hidden)
 }
 
-export async function setProductRevealed(id: string, revealed: boolean): Promise<void> {
+export async function setProductHidden(id: string, hidden: boolean): Promise<void> {
   const client = assertSupabase()
-  const { error } = await client.from('products').update({ revealed }).eq('id', id)
-  if (error) throw error
+  await setProductHiddenInStorage(client, id, hidden)
 }
 
 export async function createProduct(
@@ -116,17 +155,28 @@ export async function createProduct(
   if (uploadError) throw uploadError
 
   options?.onPhase?.('save')
-  const { data, error } = await client
-    .from('products')
-    .insert({
-      name: trimmedName,
-      category: input.category.trim(),
-      quantity_in_carton: input.quantityInCarton,
-      image_path: objectPath,
-      revealed: true,
-    })
-    .select('*')
-    .single()
+  const useDbKeys = await hasProductKeyColumn(client)
+
+  const row: Record<string, unknown> = {
+    name: trimmedName,
+    category: input.category.trim(),
+    quantity_in_carton: input.quantityInCarton,
+    image_path: objectPath,
+  }
+
+  let product_key: string | undefined
+  if (useDbKeys) {
+    product_key = await allocateNextProductKeyCounter(client)
+    row.product_key = product_key
+  }
+
+  let { data, error } = await client.from('products').insert(row).select('*').single()
+
+  if (error && useDbKeys && isProductKeyColumnMissingError(error)) {
+    delete row.product_key
+    product_key = undefined
+    ;({ data, error } = await client.from('products').insert(row).select('*').single())
+  }
 
   if (error) {
     await client.storage.from(PRODUCT_IMAGES_BUCKET).remove([objectPath])
@@ -134,5 +184,114 @@ export async function createProduct(
     throw error
   }
 
-  return data as Product
+  const inserted = data as Record<string, unknown>
+  let product = normalizeProductRow(inserted)
+
+  if (!(await hasProductKeyColumn(client))) {
+    product_key = await allocateNextProductKeyCounter(client, product.id)
+  }
+  product = { ...product, product_key: product_key ?? product.product_key }
+
+  return product
+}
+
+export async function updateProduct(
+  id: string,
+  input: UpdateProductInput,
+  options?: CreateProductOptions,
+): Promise<Product> {
+  const client = assertSupabase()
+  const trimmedName = input.name.trim()
+  await assertNameAvailable(trimmedName, client, id)
+
+  const { data: existing, error: fetchError } = await client
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (fetchError) throw fetchError
+  const current = normalizeProductRow(existing as Record<string, unknown>)
+  const hiddenIds = await readHiddenProductIds(client)
+  current.hidden = hiddenIds.has(id)
+
+  if (!(await hasProductKeyColumn(client))) {
+    const [withKey] = await applyStorageProductKeys(client, [current])
+    current.product_key = withKey.product_key
+  }
+
+  let imagePath = current.image_path
+  let uploadedPath: string | null = null
+
+  if (input.image) {
+    const image = await prepareProductImage(input.image)
+    const ext = extensionFromFile(image)
+    uploadedPath = `${crypto.randomUUID()}.${ext}`
+
+    options?.onPhase?.('upload')
+    const { error: uploadError } = await client.storage
+      .from(PRODUCT_IMAGES_BUCKET)
+      .upload(uploadedPath, image, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: image.type || 'image/jpeg',
+      })
+    if (uploadError) throw uploadError
+    imagePath = uploadedPath
+  }
+
+  options?.onPhase?.('save')
+  const { data, error } = await client
+    .from('products')
+    .update({
+      name: trimmedName,
+      category: input.category.trim(),
+      quantity_in_carton: input.quantityInCarton,
+      image_path: imagePath,
+    })
+    .eq('id', id)
+    .select('*')
+    .single()
+
+  if (error) {
+    if (uploadedPath) {
+      await client.storage.from(PRODUCT_IMAGES_BUCKET).remove([uploadedPath])
+    }
+    if (isDuplicateNameError(error)) throw new Error(DUPLICATE_NAME_MESSAGE)
+    throw error
+  }
+
+  if (uploadedPath && current.image_path) {
+    await client.storage.from(PRODUCT_IMAGES_BUCKET).remove([current.image_path])
+  }
+
+  const updated = normalizeProductRow(data as Record<string, unknown>)
+  updated.hidden = current.hidden
+  updated.product_key = current.product_key
+  return updated
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  const client = assertSupabase()
+  const { data: existing, error: fetchError } = await client
+    .from('products')
+    .select('image_path')
+    .eq('id', id)
+    .single()
+
+  if (fetchError) throw fetchError
+
+  const { error } = await client.from('products').delete().eq('id', id)
+  if (error) throw error
+
+  await removeProductFromHiddenStorage(client, id)
+
+  if (!(await hasProductKeyColumn(client))) {
+    await removeStorageProductKey(client, id)
+  }
+
+  const imagePath = (existing as { image_path: string | null }).image_path
+  if (imagePath) {
+    await client.storage.from(PRODUCT_IMAGES_BUCKET).remove([imagePath])
+  }
 }

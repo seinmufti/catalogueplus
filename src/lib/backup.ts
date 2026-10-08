@@ -4,10 +4,11 @@ import type { Product } from '@/types/product'
 
 export type BackupProductRecord = {
   id: string
+  product_key: string
   name: string
   category: string
   quantity_in_carton: number
-  revealed: boolean
+  hidden: boolean
   created_at: string
   image_file: string | null
 }
@@ -75,10 +76,11 @@ export async function downloadCatalogueBackup(): Promise<void> {
 function toBackupRecord(product: Product, imageFile: string | null): BackupProductRecord {
   return {
     id: product.id,
+    product_key: product.product_key,
     name: product.name,
     category: product.category,
     quantity_in_carton: product.quantity_in_carton,
-    revealed: product.revealed ?? true,
+    hidden: product.hidden,
     created_at: product.created_at,
     image_file: imageFile,
   }

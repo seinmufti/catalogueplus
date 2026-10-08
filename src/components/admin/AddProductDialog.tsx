@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
 import { nextDummyProductFields } from '@/lib/dummyProduct'
 import { createProduct } from '@/lib/products'
 import { supabaseConfigured } from '@/lib/supabase'
@@ -19,6 +20,7 @@ import { ImagePlus, Plus } from 'lucide-react'
 
 type AddProductDialogProps = {
   onCreated: () => void
+  onSuccess?: (detail: AdminSuccessDetail) => void
 }
 
 const DUMMY_PRODUCT_IMAGE_URL = '/dummy-product.jpg'
@@ -30,7 +32,7 @@ async function loadDummyProductImage(): Promise<File> {
   return new File([blob], 'dummy-product.jpg', { type: blob.type || 'image/jpeg' })
 }
 
-export function AddProductDialog({ onCreated }: AddProductDialogProps) {
+export function AddProductDialog({ onCreated, onSuccess }: AddProductDialogProps) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitPhase, setSubmitPhase] = useState<'upload' | 'save' | null>(null)
@@ -98,7 +100,7 @@ export function AddProductDialog({ onCreated }: AddProductDialogProps) {
     setSubmitting(true)
     setSubmitPhase('upload')
     try {
-      await createProduct(
+      const created = await createProduct(
         {
           name,
           category,
@@ -107,7 +109,7 @@ export function AddProductDialog({ onCreated }: AddProductDialogProps) {
         },
         { onPhase: setSubmitPhase },
       )
-      toast.success('Product added.')
+      onSuccess?.({ action: 'added', productKey: created.product_key })
       resetForm()
       setOpen(false)
       onCreated()

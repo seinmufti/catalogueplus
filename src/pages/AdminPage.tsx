@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { StoreLogo } from '@/components/StoreLogo'
 import { AddProductDialog } from '@/components/admin/AddProductDialog'
-import { ProductRevealCheckbox } from '@/components/admin/ProductRevealCheckbox'
+import { DeleteProductButton } from '@/components/admin/DeleteProductButton'
+import { EditProductDialog } from '@/components/admin/EditProductDialog'
+import { ProductHideCheckbox } from '@/components/admin/ProductHideCheckbox'
 import { CataloguePreviewDialog } from '@/components/admin/CataloguePreviewDialog'
+import { showAdminSuccessToast } from '@/components/admin/adminSuccessToast'
+import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
 import { DownloadBackupButton } from '@/components/admin/DownloadBackupButton'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
 import {
@@ -19,15 +23,14 @@ import { getPublicImageUrl, listProducts } from '@/lib/products'
 import { supabaseConfigured } from '@/lib/supabase'
 import type { Product } from '@/types/product'
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString()
-}
-
 export function AdminPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dbNotReady, setDbNotReady] = useState(false)
+  const notifySuccess = useCallback((detail: AdminSuccessDetail) => {
+    showAdminSuccessToast(detail)
+  }, [])
 
   const load = useCallback(async () => {
     if (!supabaseConfigured) {
@@ -55,16 +58,16 @@ export function AdminPage() {
     void load()
   }, [load])
 
-  function handleRevealedChange(productId: string, revealed: boolean) {
+  function handleHiddenChange(productId: string, hidden: boolean) {
     setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, revealed } : p)),
+      prev.map((p) => (p.id === productId ? { ...p, hidden } : p)),
     )
   }
 
   return (
     <div className="min-h-svh bg-background">
       <header className="border-b px-6 py-4">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <StoreLogo className="h-16 w-auto shrink-0" />
             <div>
@@ -75,12 +78,15 @@ export function AdminPage() {
           <div className="flex flex-wrap items-center gap-2">
             <DownloadBackupButton />
             <CataloguePreviewDialog />
-            <AddProductDialog onCreated={() => void load()} />
+            <AddProductDialog
+              onCreated={() => void load()}
+              onSuccess={notifySuccess}
+            />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-6">
+      <main className="mx-auto max-w-7xl px-6 py-6">
         {!supabaseConfigured && <SupabaseConfigNotice />}
 
         {dbNotReady && <DatabaseSetupNotice />}
@@ -100,25 +106,33 @@ export function AdminPage() {
         )}
 
         {products.length > 0 && (
-          <div className="rounded-lg border">
+          <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[88px]">Image</TableHead>
+                  <TableHead className="w-12 text-center">Index</TableHead>
+                  <TableHead className="min-w-[8.5rem]">ID</TableHead>
+                  <TableHead className="w-[72px]">Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-right">Qty / carton</TableHead>
                   <TableHead className="w-[72px] text-center [&:has([role=checkbox])]:pr-2">
-                    <span className="block w-full text-center">Reveal</span>
+                    <span className="block w-full text-center">Hide</span>
                   </TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead className="w-[88px] text-center">Edit</TableHead>
+                  <TableHead className="w-[96px] text-center">Delete</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => {
+                {products.map((product, index) => {
+                  const rowIndex = index + 1
                   const imageUrl = getPublicImageUrl(product.image_path)
                   return (
                     <TableRow key={product.id}>
+                      <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
+                        {rowIndex}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm tabular-nums">{product.product_key}</TableCell>
                       <TableCell>
                         {imageUrl ? (
                           <img
@@ -137,15 +151,31 @@ export function AdminPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-center">
-                          <ProductRevealCheckbox
+                          <ProductHideCheckbox
                             productId={product.id}
-                            revealed={product.revealed ?? true}
-                            onRevealedChange={handleRevealedChange}
+                            productKey={product.product_key}
+                            hidden={product.hidden}
+                            onHiddenChange={handleHiddenChange}
+                            onSuccess={notifySuccess}
                           />
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDate(product.created_at)}
+                      <TableCell>
+                        <div className="flex justify-center">
+                          <EditProductDialog
+                            product={product}
+                            onUpdated={() => void load()}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-center">
+                          <DeleteProductButton
+                            product={product}
+                            onDeleted={() => void load()}
+                            onSuccess={notifySuccess}
+                          />
+                        </div>
                       </TableCell>
                     </TableRow>
                   )

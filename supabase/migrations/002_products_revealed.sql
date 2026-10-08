@@ -1,4 +1,6 @@
--- Add customer visibility toggle (run in Supabase SQL Editor if 001 already applied)
+-- Hide state is stored in Storage (config/hidden-product-ids.json), not in products.
+-- Run this only if an older schema added `revealed` and you want to remove it.
 
-alter table public.products
-  add column if not exists revealed boolean not null default true;
+alter table public.products drop column if exists revealed;
+
+notify pgrst, 'reload schema';

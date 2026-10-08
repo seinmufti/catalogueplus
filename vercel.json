@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/admin",
+      "destination": "/aksesuaratali/admin",
+      "permanent": true
+    },
+    {
+      "source": "/catalogueplus/aksesuaratali",
+      "destination": "/aksesuaratali",
+      "permanent": true
+    },
+    {
+      "source": "/catalogueplus/:storeSlug",
+      "destination": "/:storeSlug",
+      "permanent": true
+    }
+  ],
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+}

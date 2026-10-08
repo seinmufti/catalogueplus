@@ -13,7 +13,12 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const envPath = path.join(root, '.env.local')
-const migrationPath = path.join(root, 'supabase', 'migrations', '001_products.sql')
+const migrationPaths = [
+  path.join(root, 'supabase', 'migrations', '001_products.sql'),
+  path.join(root, 'supabase', 'migrations', '002_products_revealed.sql'),
+  path.join(root, 'supabase', 'migrations', '003_products_unique_name.sql'),
+  path.join(root, 'supabase', 'migrations', '004_product_key.sql'),
+]
 
 const token = process.env.SUPABASE_ACCESS_TOKEN
 if (!token) {
@@ -63,26 +68,29 @@ const supabaseUrl = `https://${project.ref}.supabase.co`
 writeEnvLocal(envPath, supabaseUrl, publishableKey)
 console.log('Wrote .env.local →', supabaseUrl)
 
-const sql = readFileSync(migrationPath, 'utf8')
-const queryRes = await fetch(
-  `https://api.supabase.com/v1/projects/${project.ref}/database/query`,
-  {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+for (const migrationPath of migrationPaths) {
+  const name = path.basename(migrationPath)
+  const sql = readFileSync(migrationPath, 'utf8')
+  const queryRes = await fetch(
+    `https://api.supabase.com/v1/projects/${project.ref}/database/query`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: sql }),
     },
-    body: JSON.stringify({ query: sql }),
-  },
-)
+  )
 
-if (!queryRes.ok) {
-  console.error('Migration failed:', queryRes.status, await queryRes.text())
-  console.error('URL and key are in .env.local — you can run the SQL manually in the dashboard.')
-  process.exit(1)
+  if (!queryRes.ok) {
+    console.error(`Migration ${name} failed:`, queryRes.status, await queryRes.text())
+    console.error('URL and key are in .env.local — you can run the SQL manually in the dashboard.')
+    process.exit(1)
+  }
+
+  console.log(`Applied ${name}`)
 }
-
-console.log('Migration 001_products.sql applied.')
 console.log('Restart npm run dev if it is already running.')
 
 function readEnvValue(filePath, key) {
