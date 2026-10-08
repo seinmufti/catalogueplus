@@ -1,3 +1,4 @@
+import tiktokLogoUrl from '@/assets/tiktok-logo.svg?url'
 import { cn } from '@/lib/utils'
 
 type Props = { className?: string }
@@ -6,7 +7,7 @@ type Props = { className?: string }
 export function TikTokIcon({ className }: Props) {
   return (
     <img
-      src="/tiktok-logo.svg"
+      src={tiktokLogoUrl}
       alt=""
       width={20}
       height={20}
