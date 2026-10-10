@@ -24,7 +24,7 @@ import { DatabaseSetupNotice } from '@/components/DatabaseSetupNotice'
 import { useAdminProductMutations } from '@/hooks/useAdminProductMutations'
 import { formatLoadError, isProductsTableMissingError } from '@/lib/errors'
 import { groupProductsByCategory } from '@/lib/groupProductsByCategory'
-import { productDisplayTitle } from '@/lib/productDisplayTitle'
+import { productAdminFullName } from '@/lib/productDisplayTitle'
 import { getPublicImageUrl, listProducts } from '@/lib/products'
 import { supabaseConfigured } from '@/lib/supabase'
 import type { Product } from '@/types/product'
@@ -174,12 +174,12 @@ export function AdminPage() {
                     </label>
                   </TableHead>
                   <TableHead className="w-12 text-center">Index</TableHead>
-                  <TableHead className="min-w-[8.5rem]">ID</TableHead>
+                  <TableHead className="min-w-[7rem]">ID</TableHead>
                   <TableHead className="w-[72px]">Image</TableHead>
                   <TableHead className="w-[18%]">Category</TableHead>
                   <TableHead className="w-[22%]">completion</TableHead>
-                  <TableHead className="w-[24%]">Name</TableHead>
-                  <TableHead className="w-[14%]">Brand</TableHead>
+                  <TableHead className="w-[11%]">Brand</TableHead>
+                  <TableHead className="w-[27%]">Name</TableHead>
                   <TableHead>Qty / carton</TableHead>
                   <TableHead className={CHECKBOX_COLUMN_CLASS}>
                     <span className="block w-full text-center text-sm">Hide</span>
@@ -253,24 +253,18 @@ export function AdminPage() {
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                          <TableCell className="whitespace-normal text-muted-foreground">
-                            {showGroupHeaders ? (
-                              '—'
-                            ) : (
-                              <span
-                                dir="rtl"
-                                lang="ar"
-                                className="block text-start text-lg font-medium text-purple-700 dark:text-purple-400"
-                              >
-                                {product.category}
-                              </span>
-                            )}
+                          <TableCell className="whitespace-normal">
+                            {product.category.trim() || '—'}
                           </TableCell>
                           <TableCell className="whitespace-normal">{product.name}</TableCell>
-                          <TableCell className="font-medium whitespace-normal">
-                            {productDisplayTitle(product.category, product.name)}
-                          </TableCell>
                           <TableCell className="whitespace-normal">{product.brand || '—'}</TableCell>
+                          <TableCell className="font-medium whitespace-normal">
+                            {productAdminFullName(
+                              product.category,
+                              product.name,
+                              product.brand,
+                            ) || '—'}
+                          </TableCell>
                           <TableCell className="tabular-nums">
                             {product.quantity_in_carton > 0 ? product.quantity_in_carton : '—'}
                           </TableCell>

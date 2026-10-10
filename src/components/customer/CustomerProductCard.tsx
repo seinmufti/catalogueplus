@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { CustomerProductDetailDialog } from '@/components/customer/CustomerProductDetailDialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { productDisplayTitle } from '@/lib/productDisplayTitle'
 import { getPublicImageUrl } from '@/lib/products'
@@ -16,17 +18,29 @@ export function CustomerProductCard({
   showCategoryInTitle = false,
   fillCell = false,
 }: CustomerProductCardProps) {
+  const [detailOpen, setDetailOpen] = useState(false)
   const imageUrl = getPublicImageUrl(product.image_path)
   const displayName = productDisplayTitle(product.category, product.name)
   const completion = product.name.trim() || displayName
   const categoryLabel = product.category.trim()
 
   return (
+    <>
     <Card
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${displayName}`}
       className={cn(
-        'flex flex-col gap-0 border-border/60 py-0 shadow-none',
+        'flex cursor-pointer flex-col gap-0 border-border/60 py-0 shadow-none transition-colors hover:bg-muted/35 active:bg-muted/50',
         fillCell ? 'h-full min-h-0' : 'h-auto',
       )}
+      onClick={() => setDetailOpen(true)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          setDetailOpen(true)
+        }
+      }}
     >
       <CardContent
         className={cn(
@@ -72,5 +86,11 @@ export function CustomerProductCard({
         </div>
       </CardContent>
     </Card>
+    <CustomerProductDetailDialog
+      product={product}
+      open={detailOpen}
+      onOpenChange={setDetailOpen}
+    />
+    </>
   )
 }

@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useRef, type CSSProperties, type ReactNode } from 'react'
+import { CustomerPhonePortalProvider } from '@/components/customer/CustomerPhonePortalContext'
 import { useIphonePreviewScale } from '@/hooks/useIphonePreviewScale'
 import { IPHONE_17_ASPECT_RATIO, IPHONE_17_VIEWPORT } from '@/lib/iphone17Viewport'
 import { cn } from '@/lib/utils'
@@ -31,6 +32,7 @@ export function CustomerPhoneFrame({
   fitWithinViewport = false,
 }: CustomerPhoneFrameProps) {
   const previewScale = useIphonePreviewScale(variant === 'iphone' && fitWithinViewport)
+  const portalContainerRef = useRef<HTMLDivElement>(null)
 
   if (variant === 'iphone') {
     const deviceWidth = IPHONE_W + BEZEL_PX
@@ -39,10 +41,13 @@ export function CustomerPhoneFrame({
     const phone = (
       <div className="rounded-[2.5rem] bg-neutral-950 p-2 shadow-2xl ring-1 ring-neutral-800">
         <div
+          ref={portalContainerRef}
           className="relative overflow-hidden rounded-[2rem] bg-background"
           style={{ ...iphone17ScreenStyle, aspectRatio: IPHONE_17_ASPECT_RATIO }}
         >
-          <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">{children}</div>
+          <CustomerPhonePortalProvider containerRef={portalContainerRef}>
+            <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">{children}</div>
+          </CustomerPhonePortalProvider>
           <div
             className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex justify-center"
             aria-hidden
@@ -81,14 +86,17 @@ export function CustomerPhoneFrame({
 
   return (
     <div
+      ref={portalContainerRef}
       className={cn(
-        'flex flex-col overflow-hidden',
+        'relative flex flex-col overflow-hidden',
         'rounded-xl border border-border bg-background shadow-lg',
         className,
       )}
       style={iphone17FitScreenStyle}
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+      <CustomerPhonePortalProvider containerRef={portalContainerRef}>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+      </CustomerPhonePortalProvider>
     </div>
   )
 }
