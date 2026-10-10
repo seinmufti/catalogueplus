@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { BrandCombobox } from '@/components/admin/CategoryCombobox'
+import { ProductImageWithWatermark } from '@/components/ProductImageWithWatermark'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatLoadError } from '@/lib/errors'
@@ -191,7 +192,11 @@ export function EditProductDialog({
                 >
                   {previewUrl ? (
                     <>
-                      <img src={previewUrl} alt="" className="size-full object-cover" />
+                      <ProductImageWithWatermark
+                        src={previewUrl}
+                        alt=""
+                        className="object-cover"
+                      />
                       <span className="absolute inset-x-0 bottom-0 bg-black/55 py-1 text-center text-[10px] font-medium text-white">
                         Change
                       </span>

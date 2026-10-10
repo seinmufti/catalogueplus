@@ -6,6 +6,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { ProductImageWithWatermark } from '@/components/ProductImageWithWatermark'
 import { productDisplayTitle } from '@/lib/productDisplayTitle'
 
 type AdminProductImagePreviewProps = {
@@ -29,20 +30,22 @@ export function AdminProductImagePreview({
         className="block cursor-pointer overflow-hidden rounded-md border transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         render={<button type="button" className="cursor-pointer" />}
       >
-        <img
+        <ProductImageWithWatermark
           src={imageUrl}
           alt=""
-          className="size-14 cursor-pointer object-cover"
+          className="cursor-pointer object-cover"
+          containerClassName="size-14 cursor-pointer"
         />
       </DialogTrigger>
       <DialogContent className="max-w-[min(42rem,calc(100%-2rem))] gap-3 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <img
+        <ProductImageWithWatermark
           src={imageUrl}
           alt={title}
-          className="max-h-[min(80vh,720px)] w-full rounded-md object-contain"
+          className="object-contain"
+          containerClassName="max-h-[min(80vh,720px)] w-full rounded-md"
         />
       </DialogContent>
     </Dialog>

@@ -1,3 +1,4 @@
+import { ProductImageWithWatermark } from '@/components/ProductImageWithWatermark'
 import { useCustomerPhonePortalContainer } from '@/components/customer/CustomerPhonePortalContext'
 import {
   Dialog,
@@ -34,10 +35,11 @@ export function CustomerProductDetailDialog({
       >
         <div className="overflow-hidden rounded-lg bg-muted">
           {imageUrl ? (
-            <img
+            <ProductImageWithWatermark
               src={imageUrl}
               alt={displayName}
-              className="mx-auto max-h-[min(52vh,420px)] w-full object-contain"
+              className="object-contain"
+              containerClassName="mx-auto aspect-[5/4] max-h-[min(52vh,420px)] w-full"
             />
           ) : (
             <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">

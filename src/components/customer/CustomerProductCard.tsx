@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CustomerProductDetailDialog } from '@/components/customer/CustomerProductDetailDialog'
+import { ProductImageWithWatermark } from '@/components/ProductImageWithWatermark'
 import { Card, CardContent } from '@/components/ui/card'
 import { productDisplayTitle } from '@/lib/productDisplayTitle'
 import { getPublicImageUrl } from '@/lib/products'
@@ -56,7 +57,11 @@ export function CustomerProductCard({
         >
           <div className="aspect-[5/4] w-[76%] max-w-full overflow-hidden rounded-md bg-muted">
             {imageUrl ? (
-              <img src={imageUrl} alt={displayName} className="size-full object-cover" />
+              <ProductImageWithWatermark
+                src={imageUrl}
+                alt={displayName}
+                className="object-cover"
+              />
             ) : (
               <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
                 No image

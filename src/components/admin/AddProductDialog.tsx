@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { BrandCombobox, CategoryCombobox } from '@/components/admin/CategoryCombobox'
+import { ProductImageWithWatermark } from '@/components/ProductImageWithWatermark'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
@@ -241,10 +242,10 @@ export function AddProductDialog({
               >
                 {previewUrl ? (
                   <>
-                    <img
+                    <ProductImageWithWatermark
                       src={previewUrl}
                       alt="Selected product"
-                      className="size-full object-cover"
+                      className="object-cover"
                     />
                     <span className="absolute inset-x-0 bottom-0 bg-black/55 py-1 text-center text-[10px] font-medium text-white">
                       Change

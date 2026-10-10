@@ -10,6 +10,7 @@ import { showAdminSuccessToast } from '@/components/admin/adminSuccessToast'
 import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
 import { DeleteSelectedProductsButton } from '@/components/admin/DeleteSelectedProductsButton'
 import { AdminChangePasswordDialog } from '@/components/admin/AdminChangePasswordDialog'
+import { CopyProductImageButton } from '@/components/admin/CopyProductImageButton'
 import { DownloadBackupButton } from '@/components/admin/DownloadBackupButton'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -191,6 +192,7 @@ export function AdminPage() {
                   <TableHead className={CHECKBOX_COLUMN_CLASS}>
                     <span className="block w-full text-center text-sm">Hide</span>
                   </TableHead>
+                  <TableHead className="w-12 text-center">Copy</TableHead>
                   <TableHead className="w-[88px] text-center">Edit</TableHead>
                   <TableHead className="w-[96px] text-center">Delete</TableHead>
                 </TableRow>
@@ -206,7 +208,7 @@ export function AdminPage() {
                         className="border-t-2 border-t-border bg-muted/30 hover:bg-muted/30"
                       >
                         <TableCell
-                          colSpan={12}
+                          colSpan={13}
                           className="bg-gradient-to-r from-purple-600 to-purple-950 p-0 dark:from-purple-500 dark:to-purple-950"
                         >
                           <div className="flex items-center gap-3 px-3 py-2.5">
@@ -283,6 +285,14 @@ export function AdminPage() {
                               onHiddenChange={handleHiddenChange}
                               onSuccess={notifySuccess}
                             />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-center">
+                              <CopyProductImageButton
+                                imageUrl={imageUrl}
+                                productLabel={product.product_key}
+                              />
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-center">
