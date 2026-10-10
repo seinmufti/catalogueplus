@@ -9,6 +9,7 @@ import { CataloguePreviewDialog } from '@/components/admin/CataloguePreviewDialo
 import { showAdminSuccessToast } from '@/components/admin/adminSuccessToast'
 import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
 import { DeleteSelectedProductsButton } from '@/components/admin/DeleteSelectedProductsButton'
+import { AdminChangePasswordDialog } from '@/components/admin/AdminChangePasswordDialog'
 import { DownloadBackupButton } from '@/components/admin/DownloadBackupButton'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -22,11 +23,12 @@ import {
 } from '@/components/ui/table'
 import { DatabaseSetupNotice } from '@/components/DatabaseSetupNotice'
 import { useAdminProductMutations } from '@/hooks/useAdminProductMutations'
+import { initAdminPassword } from '@/lib/adminAuth'
 import { formatLoadError, isProductsTableMissingError } from '@/lib/errors'
 import { groupProductsByCategory } from '@/lib/groupProductsByCategory'
 import { productAdminFullName } from '@/lib/productDisplayTitle'
 import { getPublicImageUrl, listProducts } from '@/lib/products'
-import { supabaseConfigured } from '@/lib/supabase'
+import { supabase, supabaseConfigured } from '@/lib/supabase'
 import type { Product } from '@/types/product'
 
 const ROW_SELECT_CHECKBOX_CLASS =
@@ -77,6 +79,10 @@ export function AdminPage() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    void initAdminPassword(supabase)
+  }, [])
+
   function handleHiddenChange(productId: string, hidden: boolean) {
     setProducts((prev) =>
       prev.map((p) => (p.id === productId ? { ...p, hidden } : p)),
@@ -126,6 +132,7 @@ export function AdminPage() {
               onRestoreProduct={mutations.restoreProduct}
             />
             <DownloadBackupButton />
+            <AdminChangePasswordDialog />
             <CataloguePreviewDialog />
             <AddProductDialog
               products={products}

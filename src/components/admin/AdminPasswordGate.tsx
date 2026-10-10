@@ -1,13 +1,15 @@
-import { type FormEvent, type ReactNode, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  initAdminPassword,
   isAdminAuthenticated,
   setAdminAuthenticated,
   verifyAdminPassword,
 } from '@/lib/adminAuth'
 import { cataloguePath, isKnownStoreSlug } from '@/lib/store'
+import { supabase } from '@/lib/supabase'
 
 type AdminPasswordGateProps = {
   children: ReactNode
@@ -16,25 +18,49 @@ type AdminPasswordGateProps = {
 export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
   const { storeSlug } = useParams()
   const slug = isKnownStoreSlug(storeSlug) ? storeSlug : 'aksesuaratali'
+  const [ready, setReady] = useState(false)
   const [authed, setAuthed] = useState(() => isAdminAuthenticated(slug))
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void initAdminPassword(supabase).finally(() => {
+      if (!cancelled) setReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   if (authed) {
     return <>{children}</>
   }
 
+  if (!ready) {
+    return (
+      <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    )
+  }
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
     setError(null)
-    if (verifyAdminPassword(password)) {
-      setAdminAuthenticated(slug)
-      setAuthed(true)
+    setSubmitting(true)
+    void verifyAdminPassword(password).then((valid) => {
+      setSubmitting(false)
+      if (valid) {
+        setAdminAuthenticated(slug)
+        setAuthed(true)
+        setPassword('')
+        return
+      }
+      setError('Incorrect password.')
       setPassword('')
-      return
-    }
-    setError('Incorrect password.')
-    setPassword('')
+    })
   }
 
   return (
@@ -63,8 +89,8 @@ export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
             {error}
           </p>
         ) : null}
-        <Button type="submit" className="w-full">
-          Continue
+        <Button type="submit" className="w-full" disabled={submitting}>
+          {submitting ? 'Checking…' : 'Continue'}
         </Button>
       </form>
       <Link to={cataloguePath(slug)} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
