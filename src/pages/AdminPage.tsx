@@ -72,8 +72,24 @@ type CategoryDragSession = {
   category: string
   fromIndex: number
   startY: number
+  startScrollY: number
   height: number
   toIndex: number
+}
+
+function getVerticalScrollOffset(tableContainer: HTMLElement | null): number {
+  let total = window.scrollY
+  if (tableContainer) total += tableContainer.scrollTop
+  return total
+}
+
+function categoryDragOffsetY(
+  session: CategoryDragSession,
+  clientY: number,
+  tableContainer: HTMLElement | null,
+): number {
+  const scrollDelta = getVerticalScrollOffset(tableContainer) - session.startScrollY
+  return clientY - session.startY + scrollDelta
 }
 
 /** Same vertical shift as categoryRowStyle — hit-testing must match visuals. */
@@ -100,6 +116,7 @@ function measureCategoryDragSession(category: string, startY: number): CategoryD
     category,
     fromIndex,
     startY,
+    startScrollY: 0,
     height,
     toIndex: fromIndex,
   }
@@ -177,6 +194,7 @@ export function AdminPage() {
     startY: number
   } | null>(null)
   const dragSessionRef = useRef<CategoryDragSession | null>(null)
+  const lastPointerXRef = useRef(0)
   const lastPointerYRef = useRef(0)
   const dragFrameRef = useRef<number | null>(null)
   const pendingMoveRef = useRef<{ clientX: number; clientY: number } | null>(null)
@@ -345,7 +363,8 @@ export function AdminPage() {
       if (!pending || !session) return
 
       const { clientY } = pending
-      const offsetY = clientY - session.startY
+      const tableContainer = tableContainerRef.current
+      const offsetY = categoryDragOffsetY(session, clientY, tableContainer)
       const toIndex = indexFromLiveRects(clientY, session.fromIndex)
       session.toIndex = toIndex
 
@@ -380,7 +399,17 @@ export function AdminPage() {
       }
     }
 
+    const onScrollWhileDragging = () => {
+      if (!dragSessionRef.current) return
+      pendingMoveRef.current = {
+        clientX: lastPointerXRef.current,
+        clientY: lastPointerYRef.current,
+      }
+      scheduleDragFrame()
+    }
+
     const handleMove = (clientX: number, clientY: number) => {
+      lastPointerXRef.current = clientX
       lastPointerYRef.current = clientY
 
       const pending = pendingDragRef.current
@@ -402,6 +431,7 @@ export function AdminPage() {
           document.body.style.removeProperty('user-select')
           return
         }
+        session.startScrollY = getVerticalScrollOffset(tableContainerRef.current)
         dragSessionRef.current = session
         lastAppliedToIndexRef.current = session.fromIndex
         pendingMoveRef.current = { clientX, clientY }
@@ -452,6 +482,7 @@ export function AdminPage() {
     window.addEventListener('pointercancel', onPointerCancel, { capture: true })
     window.addEventListener('mousemove', onMouseMove, { capture: true })
     window.addEventListener('mouseup', onMouseUp, { capture: true })
+    window.addEventListener('scroll', onScrollWhileDragging, { capture: true, passive: true })
     window.addEventListener('keydown', onKeyDown)
     return () => {
       cancelDragFrame()
@@ -460,6 +491,7 @@ export function AdminPage() {
       window.removeEventListener('pointercancel', onPointerCancel, { capture: true })
       window.removeEventListener('mousemove', onMouseMove, { capture: true })
       window.removeEventListener('mouseup', onMouseUp, { capture: true })
+      window.removeEventListener('scroll', onScrollWhileDragging, { capture: true })
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [commitCategoryOrder])
