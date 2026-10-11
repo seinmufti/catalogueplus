@@ -30,12 +30,15 @@ type EditProductDialogProps = {
   product: Product
   onOptimisticUpdate: (productId: string, patch: Product) => () => void
   onUpdateConfirmed: (product: Product) => void
+  /** Default keeps desktop table trigger; `icon` is for mobile admin cards. */
+  triggerVariant?: 'default' | 'icon'
 }
 
 export function EditProductDialog({
   product,
   onOptimisticUpdate,
   onUpdateConfirmed,
+  triggerVariant = 'default',
 }: EditProductDialogProps) {
   const [open, setOpen] = useState(false)
   const inFlightRef = useRef(false)
@@ -126,10 +129,23 @@ export function EditProductDialog({
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Pencil className="size-3.5" />
-        Edit
-      </Button>
+      {triggerVariant === 'icon' ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-9 shrink-0"
+          aria-label={`Edit ${product.product_key}`}
+          onClick={() => setOpen(true)}
+        >
+          <Pencil className="size-4" />
+        </Button>
+      ) : (
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Pencil className="size-3.5" />
+          Edit
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleSubmit}>

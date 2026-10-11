@@ -1,6 +1,7 @@
 import {
   getCachedAdminPasswordHash,
   hashAdminPassword,
+  hydrateAdminPasswordHashFromSession,
   loadAdminPasswordHash,
   persistAdminPasswordHash,
   setCachedAdminPasswordHash,
@@ -24,11 +25,22 @@ export async function initAdminPassword(client: SupabaseClient | null): Promise<
     setCachedAdminPasswordHash(null)
     return
   }
+  if (hydrateAdminPasswordHashFromSession()) return
   await loadAdminPasswordHash(client)
+}
+
+async function ensureAdminPasswordHashLoaded(): Promise<void> {
+  if (getCachedAdminPasswordHash() !== undefined) return
+  if (!supabase) {
+    setCachedAdminPasswordHash(null)
+    return
+  }
+  await loadAdminPasswordHash(supabase)
 }
 
 /** Client-side gate only — not a substitute for server auth. */
 export async function verifyAdminPassword(password: string): Promise<boolean> {
+  await ensureAdminPasswordHashLoaded()
   const storedHash = getCachedAdminPasswordHash()
   if (storedHash) {
     return (await hashAdminPassword(password)) === storedHash

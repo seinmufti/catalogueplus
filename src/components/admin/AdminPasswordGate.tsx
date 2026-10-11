@@ -26,11 +26,14 @@ export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
 
   useEffect(() => {
     let cancelled = false
-    void initAdminPassword(supabase).finally(() => {
+    const showForm = () => {
       if (!cancelled) setReady(true)
-    })
+    }
+    const maxWait = window.setTimeout(showForm, 800)
+    void initAdminPassword(supabase).finally(showForm)
     return () => {
       cancelled = true
+      window.clearTimeout(maxWait)
     }
   }, [])
 
@@ -50,17 +53,24 @@ export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
     event.preventDefault()
     setError(null)
     setSubmitting(true)
-    void verifyAdminPassword(password).then((valid) => {
-      setSubmitting(false)
-      if (valid) {
-        setAdminAuthenticated(slug)
-        setAuthed(true)
+    void verifyAdminPassword(password)
+      .then((valid) => {
+        if (valid) {
+          setAdminAuthenticated(slug)
+          setAuthed(true)
+          setPassword('')
+          return
+        }
+        setError('Incorrect password.')
         setPassword('')
-        return
-      }
-      setError('Incorrect password.')
-      setPassword('')
-    })
+      })
+      .catch(() => {
+        setError('Could not verify password. Check your connection and try again.')
+        setPassword('')
+      })
+      .finally(() => {
+        setSubmitting(false)
+      })
   }
 
   return (

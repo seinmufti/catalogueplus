@@ -1,0 +1,14 @@
+---
+description: Admin mobile vs desktop — keep PC AdminPage unchanged unless user approves parity
+globs:
+  - src/pages/AdminMobilePage.tsx
+  - src/components/admin/mobile/**
+  - src/components/admin/AdminMobile*.tsx
+---
+
+# Admin: mobile vs desktop
+
+- **Desktop admin** is `src/pages/AdminPage.tsx`. Do not change its layout, table, or category drag unless the user explicitly asks for PC changes.
+- **Mobile admin** lives in `AdminMobilePage.tsx` and `src/components/admin/mobile/` (and `AdminMobile*.tsx` at admin root if present).
+- When implementing or changing **mobile-only** admin UI or behavior, **ask the user once per task**: “Should the same change apply on PC admin too?” Wait for yes/no before editing `AdminPage.tsx` or shared PC-only flows.
+- Shared dialogs/helpers (e.g. add/edit product) may gain **optional props with defaults** that preserve current PC behavior; do not change default PC appearance or copy.

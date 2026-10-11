@@ -40,6 +40,7 @@ type AddProductDialogProps = {
   onCreateConfirmed: (tempId: string, product: Product) => void
   onCreateFailed: (tempId: string) => void
   onSuccess?: (detail: AdminSuccessDetail) => void
+  triggerVariant?: 'default' | 'icon'
 }
 
 export function AddProductDialog({
@@ -48,6 +49,7 @@ export function AddProductDialog({
   onCreateConfirmed,
   onCreateFailed,
   onSuccess,
+  triggerVariant = 'default',
 }: AddProductDialogProps) {
   const [open, setOpen] = useState(false)
   const inFlightRef = useRef(false)
@@ -196,13 +198,13 @@ export function AddProductDialog({
       <DialogTrigger
         disabled={!supabaseConfigured}
         className={buttonVariants({
-          size: 'lg',
-          className: 'h-10 px-4 text-sm',
+          size: triggerVariant === 'icon' ? 'icon' : 'lg',
+          className: triggerVariant === 'icon' ? 'size-10 shrink-0' : 'h-10 px-4 text-sm',
         })}
         render={<button type="button" />}
       >
         <Plus className="size-5" />
-        Add product
+        {triggerVariant === 'default' ? 'Add product' : <span className="sr-only">Add product</span>}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>

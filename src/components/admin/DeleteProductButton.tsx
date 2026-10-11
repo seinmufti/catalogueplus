@@ -18,12 +18,14 @@ type DeleteProductButtonProps = {
   product: Product
   onOptimisticDelete: (productId: string) => () => void
   onSuccess?: (detail: AdminSuccessDetail) => void
+  triggerVariant?: 'default' | 'icon'
 }
 
 export function DeleteProductButton({
   product,
   onOptimisticDelete,
   onSuccess,
+  triggerVariant = 'default',
 }: DeleteProductButtonProps) {
   const [open, setOpen] = useState(false)
 
@@ -43,10 +45,23 @@ export function DeleteProductButton({
 
   return (
     <>
-      <Button type="button" variant="destructive" size="sm" onClick={() => setOpen(true)}>
-        <Trash2 className="size-3.5" />
-        Delete
-      </Button>
+      {triggerVariant === 'icon' ? (
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          className="size-9 shrink-0"
+          aria-label={`Delete ${product.product_key}`}
+          onClick={() => setOpen(true)}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      ) : (
+        <Button type="button" variant="destructive" size="sm" onClick={() => setOpen(true)}>
+          <Trash2 className="size-3.5" />
+          Delete
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
