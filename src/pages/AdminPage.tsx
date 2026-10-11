@@ -416,7 +416,7 @@ export function AdminPage() {
       if (pending && !dragSessionRef.current) {
         const moved = Math.hypot(clientX - pending.startX, clientY - pending.startY)
         if (moved < DRAG_START_PX) return
-        const { category, startY } = pending
+        const { category } = pending
         pendingDragRef.current = null
         document.body.style.cursor = 'grabbing'
         document.body.style.userSelect = 'none'
@@ -424,13 +424,15 @@ export function AdminPage() {
         flushSync(() => {
           setDraggingCategory(category)
         })
-        const session = measureCategoryDragSession(category, startY)
+        // Anchor after product rows collapse — pending.startY is from before the layout jump.
+        const session = measureCategoryDragSession(category, clientY)
         if (!session) {
           setDraggingCategory(null)
           document.body.style.removeProperty('cursor')
           document.body.style.removeProperty('user-select')
           return
         }
+        session.startY = clientY
         session.startScrollY = getVerticalScrollOffset(tableContainerRef.current)
         dragSessionRef.current = session
         lastAppliedToIndexRef.current = session.fromIndex
