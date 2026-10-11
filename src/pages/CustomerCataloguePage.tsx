@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CustomerCatalogueFooter } from '@/components/customer/CustomerCatalogueFooter'
 import { CustomerCatalogueHeader } from '@/components/customer/CustomerCatalogueHeader'
+import { CustomerCatalogueSkeleton } from '@/components/customer/CustomerCatalogueSkeleton'
 import { CustomerCategorySection } from '@/components/customer/CustomerCategorySection'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
 import { DUMMY_PRODUCT_COUNT } from '@/lib/dummyProduct'
 import { formatLoadError, isProductsTableMissingError } from '@/lib/errors'
 import { groupProductsByCategory } from '@/lib/groupProductsByCategory'
+import {
+  mergeCategoryOrderWithLabels,
+  readCategoryOrder,
+} from '@/lib/categoryOrderStorage'
 import { listCatalogueProducts } from '@/lib/products'
-import { supabaseConfigured } from '@/lib/supabase'
+import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/types/product'
 
 export function CustomerCataloguePage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,7 +46,19 @@ export function CustomerCataloguePage() {
     void load()
   }, [load])
 
-  const categoryGroups = useMemo(() => groupProductsByCategory(products), [products])
+  useEffect(() => {
+    if (!supabase) return
+    void readCategoryOrder(supabase).then((saved) => {
+      setCategoryOrder(
+        mergeCategoryOrderWithLabels(saved, products.map((p) => p.category)),
+      )
+    })
+  }, [products])
+
+  const categoryGroups = useMemo(
+    () => groupProductsByCategory(products, categoryOrder),
+    [products, categoryOrder],
+  )
   const multiSection = categoryGroups.length > 1
   const fitsOneScreen =
     !multiSection && products.length > 0 && products.length <= DUMMY_PRODUCT_COUNT
@@ -66,11 +84,7 @@ export function CustomerCataloguePage() {
           </p>
         )}
 
-        {loading && supabaseConfigured && (
-          <p className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
-            Loading…
-          </p>
-        )}
+        {loading && supabaseConfigured && <CustomerCatalogueSkeleton />}
 
         {!loading && supabaseConfigured && products.length === 0 && !error && (
           <p className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">

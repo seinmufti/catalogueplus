@@ -111,7 +111,12 @@ export async function drawWatermarkedImage(
   const { width, height } = ctx.canvas
   ctx.clearRect(0, 0, width, height)
   ctx.drawImage(productImage, 0, 0, width, height)
+  drawWatermarkLogo(ctx, logo)
+}
 
+/** Centered, semi-transparent store logo over whatever is already on the canvas. */
+export function drawWatermarkLogo(ctx: CanvasRenderingContext2D, logo: HTMLImageElement): void {
+  const { width, height } = ctx.canvas
   const base = Math.min(width, height)
   const logoWidth = base * 0.52
   const logoHeight = (logo.naturalHeight / logo.naturalWidth) * logoWidth

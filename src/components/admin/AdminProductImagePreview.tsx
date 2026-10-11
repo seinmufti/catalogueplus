@@ -11,12 +11,14 @@ import { productDisplayTitle } from '@/lib/productDisplayTitle'
 
 type AdminProductImagePreviewProps = {
   imageUrl: string
+  watermarkedImageUrl: string | null
   productCategory: string
   productName: string
 }
 
 export function AdminProductImagePreview({
   imageUrl,
+  watermarkedImageUrl,
   productCategory,
   productName,
 }: AdminProductImagePreviewProps) {
@@ -32,6 +34,7 @@ export function AdminProductImagePreview({
       >
         <ProductImageWithWatermark
           src={imageUrl}
+          watermarkedSrc={watermarkedImageUrl}
           alt=""
           className="cursor-pointer object-cover"
           containerClassName="size-14 cursor-pointer"
@@ -43,7 +46,9 @@ export function AdminProductImagePreview({
         </DialogHeader>
         <ProductImageWithWatermark
           src={imageUrl}
+          watermarkedSrc={watermarkedImageUrl}
           alt={title}
+          priority
           className="object-contain"
           containerClassName="max-h-[min(80vh,720px)] w-full rounded-md"
         />

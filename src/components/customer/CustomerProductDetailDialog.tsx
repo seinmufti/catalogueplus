@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { productDisplayTitle } from '@/lib/productDisplayTitle'
-import { getPublicImageUrl } from '@/lib/products'
+import { getProductWatermarkedImageUrl, getPublicImageUrl } from '@/lib/products'
 import type { Product } from '@/types/product'
 
 type CustomerProductDetailDialogProps = {
@@ -37,7 +37,9 @@ export function CustomerProductDetailDialog({
           {imageUrl ? (
             <ProductImageWithWatermark
               src={imageUrl}
+              watermarkedSrc={getProductWatermarkedImageUrl(product.image_path)}
               alt={displayName}
+              priority
               className="object-contain"
               containerClassName="mx-auto aspect-[5/4] max-h-[min(52vh,420px)] w-full"
             />

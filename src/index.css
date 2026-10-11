@@ -180,4 +180,17 @@
   .customer-catalogue-scroll {
     direction: rtl;
   }
+
+  /* Lets category header rows translate during reorder (transforms on <tr> are ignored in table layout). */
+  .category-reorder-dragging [data-category-reorder-row] {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    will-change: transform;
+  }
+
+  .category-reorder-dragging [data-category-reorder-row] > [data-slot='table-cell'] {
+    display: block;
+    width: 100%;
+  }
 }

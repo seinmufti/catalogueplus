@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -27,7 +27,9 @@ import {
   distinctCategoriesFromProducts,
   listProducts,
 } from '@/lib/products'
-import { supabaseConfigured } from '@/lib/supabase'
+import { categoryGroupLabel } from '@/lib/groupProductsByCategory'
+import { removeCategoryFromOrder } from '@/lib/categoryOrderStorage'
+import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/types/product'
 import { ImagePlus, Plus } from 'lucide-react'
@@ -81,6 +83,25 @@ export function AddProductDialog({
     setPreviewUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [image])
+
+  const handleDeleteCategory = useCallback(
+    (cat: string) => {
+      const label = categoryGroupLabel(cat)
+      const inUse = products.some((p) => categoryGroupLabel(p.category) === label)
+      if (inUse) {
+        toast.error('This category still has products. Remove or reassign them first.')
+        return
+      }
+      setCategoryOptions((prev) => prev.filter((c) => c !== label))
+      if (categoryGroupLabel(category) === label) setCategory('')
+      if (supabase) {
+        void removeCategoryFromOrder(supabase, label).catch(() => {
+          toast.error('Could not update saved category order.')
+        })
+      }
+    },
+    [products, category],
+  )
 
   function resetForm() {
     setName('')
@@ -194,6 +215,7 @@ export function AddProductDialog({
               value={category}
               onChange={setCategory}
               categories={categoryOptions}
+              onDeleteCategory={handleDeleteCategory}
               required
             />
             <div className="grid gap-2">

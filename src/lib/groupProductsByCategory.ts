@@ -12,8 +12,30 @@ export function categoryGroupLabel(category: string): string {
   return trimmed.length > 0 ? trimmed : UNCATEGORISED_LABEL
 }
 
-/** Group products by category (catalogue section), sorted A–Z; products keep product_key order within each group. */
-export function groupProductsByCategory(products: Product[]): ProductCategoryGroup[] {
+function sortGroupsByOrder(
+  entries: [string, Product[]][],
+  categoryOrder?: string[],
+): ProductCategoryGroup[] {
+  const indexOf = (category: string) => {
+    if (!categoryOrder?.length) return Number.MAX_SAFE_INTEGER
+    const i = categoryOrder.indexOf(category)
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i
+  }
+
+  return entries
+    .sort((a, b) => {
+      const byOrder = indexOf(a[0]) - indexOf(b[0])
+      if (byOrder !== 0) return byOrder
+      return a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
+    })
+    .map(([category, groupProducts]) => ({ category, products: groupProducts }))
+}
+
+/** Group products by category; optional saved order for sections. Products sort by product_key within each group. */
+export function groupProductsByCategory(
+  products: Product[],
+  categoryOrder?: string[],
+): ProductCategoryGroup[] {
   const map = new Map<string, Product[]>()
 
   for (const product of products) {
@@ -27,7 +49,5 @@ export function groupProductsByCategory(products: Product[]): ProductCategoryGro
     list.sort((a, b) => a.product_key.localeCompare(b.product_key))
   }
 
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
-    .map(([category, groupProducts]) => ({ category, products: groupProducts }))
+  return sortGroupsByOrder([...map.entries()], categoryOrder)
 }

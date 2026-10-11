@@ -3,7 +3,7 @@ import { CustomerProductDetailDialog } from '@/components/customer/CustomerProdu
 import { ProductImageWithWatermark } from '@/components/ProductImageWithWatermark'
 import { Card, CardContent } from '@/components/ui/card'
 import { productDisplayTitle } from '@/lib/productDisplayTitle'
-import { getPublicImageUrl } from '@/lib/products'
+import { getProductWatermarkedImageUrl, getPublicImageUrl } from '@/lib/products'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/types/product'
 
@@ -59,6 +59,7 @@ export function CustomerProductCard({
             {imageUrl ? (
               <ProductImageWithWatermark
                 src={imageUrl}
+                watermarkedSrc={getProductWatermarkedImageUrl(product.image_path)}
                 alt={displayName}
                 className="object-cover"
               />

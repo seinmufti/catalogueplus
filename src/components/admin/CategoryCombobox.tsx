@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { Trash2 } from 'lucide-react'
 
 type CreatableComboboxProps = {
   id?: string
@@ -11,6 +12,7 @@ type CreatableComboboxProps = {
   options: string[]
   disabled?: boolean
   required?: boolean
+  onDeleteOption?: (option: string) => void
 }
 
 function normalizeOption(value: string): string {
@@ -25,6 +27,7 @@ function CreatableCombobox({
   options,
   disabled,
   required,
+  onDeleteOption,
 }: CreatableComboboxProps) {
   const generatedId = useId()
   const inputId = idProp ?? generatedId
@@ -133,7 +136,10 @@ function CreatableCombobox({
           value={value}
           disabled={disabled}
           required={required}
-          onFocus={() => setOpen(true)}
+          onMouseDown={(e) => {
+            if (disabled) return
+            if (e.button === 0) setOpen(true)
+          }}
           onChange={(e) => {
             onChange(e.target.value)
             setOpen(true)
@@ -174,22 +180,41 @@ function CreatableCombobox({
                   key={option}
                   role="option"
                   aria-selected={option === value || highlighted}
+                  className={cn(
+                    'flex items-stretch',
+                    (option === value || highlighted) && 'bg-muted/70',
+                  )}
                 >
                   <button
                     type="button"
                     data-combobox-option-index={index}
-                    className={cn(
-                      'flex w-full px-3 py-2 text-left hover:bg-muted',
-                      (option === value || highlighted) && 'bg-muted/70',
-                    )}
+                    className="flex min-w-0 flex-1 px-3 py-2 text-left hover:bg-muted"
                     onMouseDown={(e) => {
                       e.preventDefault()
                       chooseOption(option)
                     }}
                     onMouseEnter={() => setHighlightIndex(index)}
                   >
-                    {option}
+                    <span className="truncate">{option}</span>
                   </button>
+                  {onDeleteOption ? (
+                    <button
+                      type="button"
+                      aria-label={`Delete category ${option}`}
+                      className="shrink-0 px-2.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onDeleteOption(option)
+                        setLocalOptions((prev) =>
+                          prev.filter((c) => c.toLowerCase() !== option.toLowerCase()),
+                        )
+                        if (value.toLowerCase() === option.toLowerCase()) onChange('')
+                      }}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  ) : null}
                 </li>
               )
             })}
@@ -219,17 +244,29 @@ function CreatableCombobox({
   )
 }
 
-type CategoryComboboxProps = Omit<CreatableComboboxProps, 'label' | 'options'> & {
+type CategoryComboboxProps = Omit<
+  CreatableComboboxProps,
+  'label' | 'options' | 'onDeleteOption'
+> & {
   label?: string
   categories: string[]
+  onDeleteCategory?: (category: string) => void
 }
 
 export function CategoryCombobox({
   label = 'Category',
   categories,
+  onDeleteCategory,
   ...rest
 }: CategoryComboboxProps) {
-  return <CreatableCombobox label={label} options={categories} {...rest} />
+  return (
+    <CreatableCombobox
+      label={label}
+      options={categories}
+      onDeleteOption={onDeleteCategory}
+      {...rest}
+    />
+  )
 }
 
 type BrandComboboxProps = Omit<CreatableComboboxProps, 'label' | 'options'> & {
