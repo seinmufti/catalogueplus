@@ -67,6 +67,8 @@ const CHECKBOX_CELL_LABEL_CLASS =
   'flex h-full min-h-14 w-full cursor-pointer items-center justify-center'
 
 const DRAG_START_PX = 5
+const DRAG_EDGE_SCROLL_PX = 80
+const DRAG_EDGE_SCROLL_MAX_STEP = 22
 
 type CategoryDragSession = {
   category: string
@@ -77,6 +79,58 @@ type CategoryDragSession = {
   appliedOffsetY: number
   height: number
   toIndex: number
+}
+
+function edgeScrollStep(clientY: number): number {
+  const viewportHeight = window.innerHeight
+  if (clientY >= viewportHeight - DRAG_EDGE_SCROLL_PX) {
+    const depth = (clientY - (viewportHeight - DRAG_EDGE_SCROLL_PX)) / DRAG_EDGE_SCROLL_PX
+    return Math.min(DRAG_EDGE_SCROLL_MAX_STEP, Math.max(1, depth * DRAG_EDGE_SCROLL_MAX_STEP))
+  }
+  if (clientY <= DRAG_EDGE_SCROLL_PX) {
+    const depth = (DRAG_EDGE_SCROLL_PX - clientY) / DRAG_EDGE_SCROLL_PX
+    return -Math.min(DRAG_EDGE_SCROLL_MAX_STEP, Math.max(1, depth * DRAG_EDGE_SCROLL_MAX_STEP))
+  }
+  return 0
+}
+
+function canScrollVertically(delta: number, tableContainer: HTMLElement | null): boolean {
+  if (delta > 0) {
+    const docBottom = document.documentElement.scrollHeight - window.innerHeight
+    if (window.scrollY < docBottom - 1) return true
+    if (
+      tableContainer &&
+      tableContainer.scrollTop < tableContainer.scrollHeight - tableContainer.clientHeight - 1
+    ) {
+      return true
+    }
+    return false
+  }
+  if (delta < 0) {
+    if (window.scrollY > 0) return true
+    if (tableContainer && tableContainer.scrollTop > 0) return true
+    return false
+  }
+  return false
+}
+
+/** Scroll window / table when the pointer sits in the top or bottom edge band. */
+function applyDragEdgeScroll(clientY: number, tableContainer: HTMLElement | null): boolean {
+  const delta = edgeScrollStep(clientY)
+  if (delta === 0 || !canScrollVertically(delta, tableContainer)) return false
+
+  let scrolled = false
+  const scrollBefore = window.scrollY
+  window.scrollBy(0, delta)
+  if (window.scrollY !== scrollBefore) scrolled = true
+
+  if (tableContainer) {
+    const tableBefore = tableContainer.scrollTop
+    tableContainer.scrollBy(0, delta)
+    if (tableContainer.scrollTop !== tableBefore) scrolled = true
+  }
+
+  return scrolled
 }
 
 function grabOffsetInCategoryRow(clientY: number, category: string): number {
@@ -386,6 +440,9 @@ export function AdminPage() {
       if (!pending || !session) return
 
       const { clientY } = pending
+      const tableContainer = tableContainerRef.current
+      applyDragEdgeScroll(clientY, tableContainer)
+
       const offsetY = categoryDragOffsetY(session, clientY)
       const toIndex = indexFromLiveRects(clientY, session.fromIndex)
       session.toIndex = toIndex
@@ -394,6 +451,11 @@ export function AdminPage() {
 
       if (toIndex !== lastAppliedToIndexRef.current) {
         lastAppliedToIndexRef.current = toIndex
+      }
+
+      const edgeStep = edgeScrollStep(clientY)
+      if (edgeStep !== 0 && canScrollVertically(edgeStep, tableContainer)) {
+        scheduleDragFrame()
       }
     }
 
@@ -531,14 +593,8 @@ export function AdminPage() {
   return (
     <div className="min-h-svh w-full bg-background">
       <header className="border-b px-6 py-4 lg:px-8">
-        <div className="flex w-full flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <StoreLogo className="h-16 w-auto shrink-0" />
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Catalogue+ Admin</h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-1 items-center gap-4 lg:grid-cols-[1fr_auto_1fr]">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-self-start">
             <DeleteSelectedProductsButton
               products={selectedProducts}
               disabled={selectedCount === 0}
@@ -548,6 +604,12 @@ export function AdminPage() {
             />
             <DownloadBackupButton />
             <AdminChangePasswordDialog />
+          </div>
+          <div className="flex items-center justify-center gap-4 lg:justify-self-center">
+            <StoreLogo className="h-16 w-auto shrink-0" />
+            <h1 className="text-2xl font-semibold tracking-tight">Catalogue+ Admin</h1>
+          </div>
+          <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-self-end lg:justify-end">
             <CataloguePreviewDialog />
             <AddProductDialog
               products={products}
