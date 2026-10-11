@@ -71,25 +71,43 @@ const DRAG_START_PX = 5
 type CategoryDragSession = {
   category: string
   fromIndex: number
-  startY: number
-  startScrollY: number
+  /** Pointer Y minus row top — captured before product rows collapse. */
+  grabOffsetInRow: number
+  /** Last transform applied to the dragged row (for layout-top math). */
+  appliedOffsetY: number
   height: number
   toIndex: number
 }
 
-function getVerticalScrollOffset(tableContainer: HTMLElement | null): number {
-  let total = window.scrollY
-  if (tableContainer) total += tableContainer.scrollTop
-  return total
+function grabOffsetInCategoryRow(clientY: number, category: string): number {
+  const rows = [...document.querySelectorAll<HTMLElement>('[data-category-reorder-row]')]
+  const row = rows.find((el) => el.dataset.categoryReorderRow === category)
+  if (!row) return 0
+  const grip = row.querySelector<HTMLElement>('button[aria-label^="Drag to reorder"]')
+  const rowTop = row.getBoundingClientRect().top
+  if (grip) {
+    const gripRect = grip.getBoundingClientRect()
+    return gripRect.top + gripRect.height / 2 - rowTop
+  }
+  return clientY - rowTop
 }
 
-function categoryDragOffsetY(
-  session: CategoryDragSession,
-  clientY: number,
-  tableContainer: HTMLElement | null,
-): number {
-  const scrollDelta = getVerticalScrollOffset(tableContainer) - session.startScrollY
-  return clientY - session.startY + scrollDelta
+function categoryDragOffsetY(session: CategoryDragSession, clientY: number): number {
+  const rows = document.querySelectorAll<HTMLElement>('[data-category-reorder-row]')
+  const row = rows[session.fromIndex]
+  if (!row) return session.appliedOffsetY
+
+  const grip = row.querySelector<HTMLElement>('button[aria-label^="Drag to reorder"]')
+  if (grip) {
+    const gripRect = grip.getBoundingClientRect()
+    const gripCenterY = gripRect.top + gripRect.height / 2
+    session.appliedOffsetY += clientY - gripCenterY
+    return session.appliedOffsetY
+  }
+
+  const layoutTop = row.getBoundingClientRect().top - session.appliedOffsetY
+  session.appliedOffsetY = clientY - session.grabOffsetInRow - layoutTop
+  return session.appliedOffsetY
 }
 
 /** Same vertical shift as categoryRowStyle — hit-testing must match visuals. */
@@ -106,7 +124,10 @@ function categoryShiftPx(
   return 0
 }
 
-function measureCategoryDragSession(category: string, startY: number): CategoryDragSession | null {
+function measureCategoryDragSession(
+  category: string,
+  grabOffsetInRow: number,
+): CategoryDragSession | null {
   const rows = [...document.querySelectorAll<HTMLElement>('[data-category-reorder-row]')]
   if (rows.length === 0) return null
   const fromIndex = rows.findIndex((row) => row.dataset.categoryReorderRow === category)
@@ -115,8 +136,8 @@ function measureCategoryDragSession(category: string, startY: number): CategoryD
   return {
     category,
     fromIndex,
-    startY,
-    startScrollY: 0,
+    grabOffsetInRow,
+    appliedOffsetY: 0,
     height,
     toIndex: fromIndex,
   }
@@ -192,6 +213,7 @@ export function AdminPage() {
     category: string
     startX: number
     startY: number
+    grabOffsetInRow: number
   } | null>(null)
   const dragSessionRef = useRef<CategoryDragSession | null>(null)
   const lastPointerXRef = useRef(0)
@@ -325,6 +347,7 @@ export function AdminPage() {
       category,
       startX: clientX,
       startY: clientY,
+      grabOffsetInRow: grabOffsetInCategoryRow(clientY, category),
     }
   }, [])
 
@@ -363,8 +386,7 @@ export function AdminPage() {
       if (!pending || !session) return
 
       const { clientY } = pending
-      const tableContainer = tableContainerRef.current
-      const offsetY = categoryDragOffsetY(session, clientY, tableContainer)
+      const offsetY = categoryDragOffsetY(session, clientY)
       const toIndex = indexFromLiveRects(clientY, session.fromIndex)
       session.toIndex = toIndex
 
@@ -416,7 +438,7 @@ export function AdminPage() {
       if (pending && !dragSessionRef.current) {
         const moved = Math.hypot(clientX - pending.startX, clientY - pending.startY)
         if (moved < DRAG_START_PX) return
-        const { category } = pending
+        const { category, grabOffsetInRow } = pending
         pendingDragRef.current = null
         document.body.style.cursor = 'grabbing'
         document.body.style.userSelect = 'none'
@@ -424,20 +446,23 @@ export function AdminPage() {
         flushSync(() => {
           setDraggingCategory(category)
         })
-        // Anchor after product rows collapse — pending.startY is from before the layout jump.
-        const session = measureCategoryDragSession(category, clientY)
+        const session = measureCategoryDragSession(category, grabOffsetInRow)
         if (!session) {
           setDraggingCategory(null)
           document.body.style.removeProperty('cursor')
           document.body.style.removeProperty('user-select')
           return
         }
-        session.startY = clientY
-        session.startScrollY = getVerticalScrollOffset(tableContainerRef.current)
         dragSessionRef.current = session
         lastAppliedToIndexRef.current = session.fromIndex
         pendingMoveRef.current = { clientX, clientY }
-        runDragFrame()
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!dragSessionRef.current) return
+            dragSessionRef.current.appliedOffsetY = 0
+            runDragFrame()
+          })
+        })
         return
       }
 
