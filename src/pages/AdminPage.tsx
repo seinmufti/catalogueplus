@@ -553,7 +553,12 @@ export function AdminPage() {
         {!loading && products.length > 0 && (
           <div
             ref={tableContainerRef}
-            className="relative w-full overflow-x-auto rounded-lg border"
+            className={cn(
+              'relative w-full rounded-lg border',
+              draggingCategory !== null
+                ? 'category-reorder-active overflow-x-hidden'
+                : 'overflow-x-auto',
+            )}
           >
             <div>
             <Table className="w-full [&_td:not(:last-child)]:border-r [&_th:not(:last-child)]:border-r [&_td]:border-border [&_th]:border-border">

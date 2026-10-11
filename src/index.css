@@ -192,5 +192,12 @@
   .category-reorder-dragging [data-category-reorder-row] > [data-slot='table-cell'] {
     display: block;
     width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Block-level category rows during drag must not widen the table or show a x-scrollbar. */
+  .category-reorder-active [data-slot='table-container'] {
+    overflow-x: hidden;
   }
 }
