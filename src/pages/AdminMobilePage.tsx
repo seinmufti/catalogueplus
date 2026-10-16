@@ -1,131 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
 import { StoreLogo } from '@/components/StoreLogo'
 import { AddProductDialog } from '@/components/admin/AddProductDialog'
-import { showAdminSuccessToast } from '@/components/admin/adminSuccessToast'
-import type { AdminSuccessDetail } from '@/components/admin/AdminSuccessNotice'
 import { AdminMobileMenuDialog } from '@/components/admin/mobile/AdminMobileMenuDialog'
 import { AdminMobilePageSkeleton } from '@/components/admin/mobile/AdminMobilePageSkeleton'
 import { AdminMobileProductCard } from '@/components/admin/mobile/AdminMobileProductCard'
 import { SupabaseConfigNotice } from '@/components/SupabaseConfigNotice'
 import { DatabaseSetupNotice } from '@/components/DatabaseSetupNotice'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useAdminProductMutations } from '@/hooks/useAdminProductMutations'
-import { initAdminPassword } from '@/lib/adminAuth'
-import { formatLoadError, isProductsTableMissingError } from '@/lib/errors'
-import {
-  mergeCategoryOrderWithLabels,
-  readCategoryOrder,
-} from '@/lib/categoryOrderStorage'
-import { groupProductsByCategory } from '@/lib/groupProductsByCategory'
-import { listProducts } from '@/lib/products'
-import { ensureWatermarkedImages } from '@/lib/watermarkedImages'
-import { supabase, supabaseConfigured } from '@/lib/supabase'
-import type { Product } from '@/types/product'
-import { toast } from 'sonner'
+import { useAdminCatalogue } from '@/hooks/useAdminCatalogue'
+import { supabaseConfigured } from '@/lib/supabase'
 
 export function AdminMobilePage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [dbNotReady, setDbNotReady] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
-  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
+  const {
+    products,
+    loading,
+    error,
+    dbNotReady,
+    selectedIds,
+    selectedProducts,
+    selectedCount,
+    allRowsSelected,
+    someRowsSelected,
+    categoryGroups,
+    mutations,
+    notifySuccess,
+    handleHiddenChange,
+    setRowSelected,
+    setAllRowsSelected,
+  } = useAdminCatalogue()
 
-  const notifySuccess = useCallback((detail: AdminSuccessDetail) => {
-    showAdminSuccessToast(detail)
-  }, [])
-
-  const mutations = useAdminProductMutations(setProducts, setSelectedIds)
-
-  const load = useCallback(async () => {
-    if (!supabaseConfigured) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    setDbNotReady(false)
-    try {
-      const list = await listProducts()
-      setProducts(list)
-      if (supabase) {
-        void ensureWatermarkedImages(
-          supabase,
-          list.map((p) => p.image_path),
-        ).then(({ generated, failed }) => {
-          if (generated > 0) toast.success(`Created ${generated} watermarked image(s).`)
-          if (failed > 0) toast.error(`Could not watermark ${failed} image(s).`)
-        })
-      }
-    } catch (err) {
-      if (isProductsTableMissingError(err)) {
-        setProducts([])
-        setDbNotReady(true)
-      } else {
-        setError(formatLoadError(err, 'Failed to load products.'))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  useEffect(() => {
-    void initAdminPassword(supabase)
-  }, [])
-
-  useEffect(() => {
-    if (!supabase) return
-    void readCategoryOrder(supabase).then((saved) => {
-      setCategoryOrder((prev) =>
-        mergeCategoryOrderWithLabels(
-          prev.length > 0 ? prev : saved,
-          products.map((p) => p.category),
-        ),
-      )
-    })
-  }, [products])
-
-  function handleHiddenChange(productId: string, hidden: boolean) {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, hidden } : p)),
-    )
-  }
-
-  function setRowSelected(productId: string, selected: boolean) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (selected) next.add(productId)
-      else next.delete(productId)
-      return next
-    })
-  }
-
-  function setAllRowsSelected(selected: boolean) {
-    if (selected) {
-      setSelectedIds(new Set(products.map((p) => p.id)))
-    } else {
-      setSelectedIds(new Set())
-    }
-  }
-
-  const mergedCategoryOrder = useMemo(
-    () => mergeCategoryOrderWithLabels(categoryOrder, products.map((p) => p.category)),
-    [categoryOrder, products],
-  )
-
-  const categoryGroups = useMemo(
-    () => groupProductsByCategory(products, mergedCategoryOrder),
-    [products, mergedCategoryOrder],
-  )
-
-  const selectedProducts = products.filter((p) => selectedIds.has(p.id))
-  const selectedCount = selectedProducts.length
-  const allRowsSelected = products.length > 0 && selectedCount === products.length
-  const someRowsSelected = selectedCount > 0 && !allRowsSelected
   const showGroupHeaders = categoryGroups.length > 1
 
   return (

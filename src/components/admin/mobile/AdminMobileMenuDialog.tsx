@@ -8,6 +8,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { AdminChangePasswordDialog } from '@/components/admin/AdminChangePasswordDialog'
+import { AdminSignOutButton } from '@/components/admin/AdminSignOutButton'
 import { CataloguePreviewDialog } from '@/components/admin/CataloguePreviewDialog'
 import { DeleteSelectedProductsButton } from '@/components/admin/DeleteSelectedProductsButton'
 import { DownloadBackupButton } from '@/components/admin/DownloadBackupButton'
@@ -59,6 +60,7 @@ export function AdminMobileMenuDialog({
           <DownloadBackupButton />
           <AdminChangePasswordDialog />
           <CataloguePreviewDialog />
+          <AdminSignOutButton />
         </div>
       </DialogContent>
     </Dialog>

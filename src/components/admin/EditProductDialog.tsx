@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { BrandCombobox } from '@/components/admin/CategoryCombobox'
+import { BrandCombobox, CategoryCombobox } from '@/components/admin/CategoryCombobox'
 import { ProductImageWithWatermark } from '@/components/ProductImageWithWatermark'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,6 +16,7 @@ import { formatLoadError } from '@/lib/errors'
 import { parseOptionalCartonQuantity } from '@/lib/parseCartonQuantity'
 import {
   distinctBrandsFromProducts,
+  distinctCategoriesFromProducts,
   getPublicImageUrl,
   listProducts,
   updateProduct,
@@ -46,6 +47,7 @@ export function EditProductDialog({
   const [category, setCategory] = useState(product.category)
   const [brand, setBrand] = useState(product.brand)
   const [brandOptions, setBrandOptions] = useState<string[]>([])
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([])
   const [quantity, setQuantity] = useState(
     product.quantity_in_carton > 0 ? String(product.quantity_in_carton) : '',
   )
@@ -63,8 +65,14 @@ export function EditProductDialog({
     )
     if (supabaseConfigured) {
       void listProducts()
-        .then((rows) => setBrandOptions(distinctBrandsFromProducts(rows)))
-        .catch(() => setBrandOptions([]))
+        .then((rows) => {
+          setBrandOptions(distinctBrandsFromProducts(rows))
+          setCategoryOptions(distinctCategoriesFromProducts(rows))
+        })
+        .catch(() => {
+          setBrandOptions([])
+          setCategoryOptions([])
+        })
     }
     setImage(null)
     if (imageInputRef.current) imageInputRef.current.value = ''
@@ -153,15 +161,13 @@ export function EditProductDialog({
               <DialogTitle>Edit product</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor={`edit-category-${product.id}`}>Category</Label>
-                <Input
-                  id={`edit-category-${product.id}`}
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  required
-                />
-              </div>
+              <CategoryCombobox
+                id={`edit-category-${product.id}`}
+                value={category}
+                onChange={setCategory}
+                categories={categoryOptions}
+                required
+              />
               <div className="grid gap-2">
                 <Label htmlFor={`edit-name-${product.id}`}>completion</Label>
                 <Input

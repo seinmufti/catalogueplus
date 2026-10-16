@@ -9,8 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "supabase:wire": "node scripts/wire-supabase.mjs",
-    "supabase:migrate": "node scripts/apply-migrations.mjs",
-    "supabase:brand": "node scripts/apply-brand-column.mjs"
+    "supabase:migrate": "node scripts/apply-migrations.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

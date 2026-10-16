@@ -1,4 +1,9 @@
+import type { RefObject } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+
+type CustomerCatalogueSkeletonProps = {
+  scrollRef?: RefObject<HTMLDivElement | null>
+}
 
 function CustomerProductCardSkeleton() {
   return (
@@ -25,9 +30,10 @@ function CustomerCategorySectionSkeleton({ cards = 6 }: { cards?: number }) {
   )
 }
 
-export function CustomerCatalogueSkeleton() {
+export function CustomerCatalogueSkeleton({ scrollRef }: CustomerCatalogueSkeletonProps) {
   return (
     <div
+      ref={scrollRef}
       className="customer-catalogue-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto py-0.5"
       aria-busy="true"
       aria-label="Loading catalogue"

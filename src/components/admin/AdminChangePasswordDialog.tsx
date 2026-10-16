@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { changeAdminPassword } from '@/lib/adminAuth'
+import { changeAdminPassword, MIN_ADMIN_PASSWORD_LENGTH } from '@/lib/adminAuth'
 import { supabaseConfigured } from '@/lib/supabase'
 
 export function AdminChangePasswordDialog() {
@@ -67,9 +67,8 @@ export function AdminChangePasswordDialog() {
         <DialogHeader>
           <DialogTitle>Change admin password</DialogTitle>
           <DialogDescription>
-            Enter your current password and a new one. This app does not offer password recovery —
-            forgetting the password does not delete catalogue data, but you will need the current
-            password to change it.
+            Enter your current password and a new one (at least {MIN_ADMIN_PASSWORD_LENGTH}
+            characters).
           </DialogDescription>
         </DialogHeader>
         {!supabaseConfigured ? (
@@ -93,7 +92,7 @@ export function AdminChangePasswordDialog() {
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               required
-              minLength={4}
+              minLength={MIN_ADMIN_PASSWORD_LENGTH}
             />
             <Input
               type="password"
@@ -102,7 +101,7 @@ export function AdminChangePasswordDialog() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               required
-              minLength={4}
+              minLength={MIN_ADMIN_PASSWORD_LENGTH}
             />
             {error ? (
               <p className="text-sm text-destructive" role="alert">

@@ -4,28 +4,6 @@ import {
   supabaseConfigError,
 } from '@/lib/supabase'
 import {
-  applyHiddenFlags,
-  readHiddenProductIds,
-  removeProductFromHiddenStorage,
-  setProductHiddenInStorage,
-} from '@/lib/productVisibility'
-import { isBrandColumnMissingError } from '@/lib/productBrand'
-import { clearBrandColumnCache, hasBrandColumn } from '@/lib/productBrandColumn'
-import {
-  applyStorageBrands,
-  readProductBrands,
-  removeProductBrandFromStorage,
-  setProductBrandInStorage,
-} from '@/lib/productBrandStorage'
-import { hasProductKeyColumn } from '@/lib/productKeyColumn'
-import { isProductKeyColumnMissingError } from '@/lib/productKey'
-import {
-  allocateNextProductKey as allocateNextProductKeyCounter,
-  applyStorageProductKeys,
-  removeStorageProductKey,
-  syncProductKeyCounter,
-} from '@/lib/productKeyStorage'
-import {
   getWatermarkedImageUrl,
   removeWatermarkedImage,
   uploadWatermarkedImage,
@@ -47,23 +25,9 @@ function assertSupabase() {
 
 const DUPLICATE_NAME_MESSAGE = 'A product with this name already exists.'
 
+/** The `name` column is unique in the database, which is what actually enforces this. */
 function isDuplicateNameError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const e = err as { code?: string; message?: string }
-  return e.code === '23505' || (e.message?.includes('products_name_unique') ?? false)
-}
-
-async function assertNameAvailable(
-  name: string,
-  client: ReturnType<typeof assertSupabase>,
-  excludeProductId?: string,
-): Promise<void> {
-  const trimmed = name.trim()
-  const { data, error } = await client.from('products').select('id').eq('name', trimmed)
-
-  if (error) throw error
-  const taken = (data ?? []).some((row) => row.id !== excludeProductId)
-  if (taken) throw new Error(DUPLICATE_NAME_MESSAGE)
+  return (err as { code?: string } | null)?.code === '23505'
 }
 
 function extensionFromFile(file: File): string {
@@ -133,71 +97,37 @@ export function distinctBrandsFromProducts(products: Product[]): string[] {
   return unique
 }
 
-function normalizeProductRow(row: Record<string, unknown>): Product {
-  const { revealed: _legacy, ...rest } = row
-  const product_key =
-    typeof rest.product_key === 'string' && rest.product_key.length > 0
-      ? rest.product_key
-      : '????'
-  const brand = typeof rest.brand === 'string' ? rest.brand : ''
-  return {
-    ...(rest as Omit<Product, 'hidden' | 'product_key' | 'brand'>),
-    brand,
-    product_key,
-    hidden: false,
-  }
-}
-
-async function withHiddenState(products: Product[]): Promise<Product[]> {
-  const client = assertSupabase()
-  const hiddenIds = await readHiddenProductIds(client)
-  return applyHiddenFlags(products, hiddenIds)
-}
-
-async function attachProductKeys(client: ReturnType<typeof assertSupabase>, rows: Record<string, unknown>[]) {
-  const useDbKeys = await hasProductKeyColumn(client)
-  let products = rows.map((row) => normalizeProductRow(row))
-
-  if (useDbKeys) {
-    await syncProductKeyCounter(
-      client,
-      products.map((p) => p.product_key).filter((k) => k !== '????'),
-    )
-  } else {
-    const withKeys = await applyStorageProductKeys(client, products)
-    products = withKeys.map((p) => normalizeProductRow(p as Record<string, unknown>))
-    products.sort((a, b) => a.product_key.localeCompare(b.product_key))
-  }
-
-  if (!(await hasBrandColumn(client))) {
-    products = applyStorageBrands(products, await readProductBrands(client))
-  }
-
-  return withHiddenState(products)
-}
-
 export async function listProducts(): Promise<Product[]> {
-  const client = assertSupabase()
-  const useDbKeys = await hasProductKeyColumn(client)
-
-  const { data, error } = await client
+  const { data, error } = await assertSupabase()
     .from('products')
     .select('*')
-    .order(useDbKeys ? 'product_key' : 'created_at', { ascending: true })
+    .order('product_key', { ascending: true })
 
   if (error) throw error
-  return attachProductKeys(client, (data ?? []) as Record<string, unknown>[])
+  return (data ?? []) as Product[]
 }
 
 /** Products visible on the customer catalogue (not hidden). */
 export async function listCatalogueProducts(): Promise<Product[]> {
-  const all = await listProducts()
-  return all.filter((p) => !p.hidden)
+  const { data, error } = await assertSupabase()
+    .from('products')
+    .select('*')
+    .eq('hidden', false)
+    .order('product_key', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as Product[]
 }
 
 export async function setProductHidden(id: string, hidden: boolean): Promise<void> {
-  const client = assertSupabase()
-  await setProductHiddenInStorage(client, id, hidden)
+  // `.single()` makes a silently rejected update (0 rows, e.g. signed out) an error.
+  const { error } = await assertSupabase()
+    .from('products')
+    .update({ hidden })
+    .eq('id', id)
+    .select('id')
+    .single()
+  if (error) throw error
 }
 
 export async function createProduct(
@@ -205,44 +135,23 @@ export async function createProduct(
   options?: CreateProductOptions,
 ): Promise<Product> {
   const client = assertSupabase()
-  const trimmedName = input.name.trim()
-  await assertNameAvailable(trimmedName, client)
 
   options?.onPhase?.('upload')
   const objectPath = await uploadOriginalWithWatermark(client, input.image)
 
   options?.onPhase?.('save')
-  const useDbKeys = await hasProductKeyColumn(client)
-  const brandValue = input.brand.trim()
-  const useBrandColumn = await hasBrandColumn(client)
-
-  const row: Record<string, unknown> = {
-    name: trimmedName,
-    category: input.category.trim(),
-    quantity_in_carton: input.quantityInCarton,
-    image_path: objectPath,
-  }
-  if (useBrandColumn) row.brand = brandValue
-
-  let product_key: string | undefined
-  if (useDbKeys) {
-    product_key = await allocateNextProductKeyCounter(client)
-    row.product_key = product_key
-  }
-
-  let { data, error } = await client.from('products').insert(row).select('*').single()
-
-  if (error && useDbKeys && isProductKeyColumnMissingError(error)) {
-    delete row.product_key
-    product_key = undefined
-    ;({ data, error } = await client.from('products').insert(row).select('*').single())
-  }
-
-  if (error && isBrandColumnMissingError(error)) {
-    clearBrandColumnCache()
-    delete row.brand
-    ;({ data, error } = await client.from('products').insert(row).select('*').single())
-  }
+  // product_key is assigned by the database.
+  const { data, error } = await client
+    .from('products')
+    .insert({
+      name: input.name.trim(),
+      category: input.category.trim(),
+      brand: input.brand.trim(),
+      quantity_in_carton: input.quantityInCarton,
+      image_path: objectPath,
+    })
+    .select('*')
+    .single()
 
   if (error) {
     await removeProductImageFiles(client, objectPath)
@@ -250,20 +159,7 @@ export async function createProduct(
     throw error
   }
 
-  const inserted = data as Record<string, unknown>
-  let product = normalizeProductRow(inserted)
-
-  if (!(await hasProductKeyColumn(client))) {
-    product_key = await allocateNextProductKeyCounter(client, product.id)
-  }
-  product = { ...product, product_key: product_key ?? product.product_key }
-
-  if (!(await hasBrandColumn(client))) {
-    await setProductBrandInStorage(client, product.id, brandValue)
-  }
-  product = { ...product, brand: brandValue || product.brand }
-
-  return product
+  return data as Product
 }
 
 export async function updateProduct(
@@ -272,84 +168,50 @@ export async function updateProduct(
   options?: CreateProductOptions,
 ): Promise<Product> {
   const client = assertSupabase()
-  const trimmedName = input.name.trim()
-  await assertNameAvailable(trimmedName, client, id)
 
-  const { data: existing, error: fetchError } = await client
-    .from('products')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (fetchError) throw fetchError
-  const current = normalizeProductRow(existing as Record<string, unknown>)
-  const hiddenIds = await readHiddenProductIds(client)
-  current.hidden = hiddenIds.has(id)
-
-  if (!(await hasProductKeyColumn(client))) {
-    const [withKey] = await applyStorageProductKeys(client, [current])
-    current.product_key = withKey.product_key
-  }
-
-  let imagePath = current.image_path
+  let previousImagePath: string | null = null
+  let imagePath: string | undefined
   let uploadedPath: string | null = null
 
   if (input.image) {
+    const { data: existing, error: fetchError } = await client
+      .from('products')
+      .select('image_path')
+      .eq('id', id)
+      .single()
+    if (fetchError) throw fetchError
+    previousImagePath = (existing as { image_path: string | null }).image_path
+
     options?.onPhase?.('upload')
     uploadedPath = await uploadOriginalWithWatermark(client, input.image)
     imagePath = uploadedPath
   }
 
   options?.onPhase?.('save')
-  const brandValue = input.brand.trim()
-  const useBrandColumn = await hasBrandColumn(client)
-
-  const patch: Record<string, unknown> = {
-    name: trimmedName,
-    category: input.category.trim(),
-    quantity_in_carton: input.quantityInCarton,
-    image_path: imagePath,
-  }
-  if (useBrandColumn) patch.brand = brandValue
-
-  let { data, error } = await client
+  const { data, error } = await client
     .from('products')
-    .update(patch)
+    .update({
+      name: input.name.trim(),
+      category: input.category.trim(),
+      brand: input.brand.trim(),
+      quantity_in_carton: input.quantityInCarton,
+      ...(imagePath ? { image_path: imagePath } : {}),
+    })
     .eq('id', id)
     .select('*')
     .single()
 
-  if (error && isBrandColumnMissingError(error)) {
-    clearBrandColumnCache()
-    delete patch.brand
-    ;({ data, error } = await client
-      .from('products')
-      .update(patch)
-      .eq('id', id)
-      .select('*')
-      .single())
-  }
-
   if (error) {
-    if (uploadedPath) {
-      await removeProductImageFiles(client, uploadedPath)
-    }
+    if (uploadedPath) await removeProductImageFiles(client, uploadedPath)
     if (isDuplicateNameError(error)) throw new Error(DUPLICATE_NAME_MESSAGE)
     throw error
   }
 
-  if (uploadedPath && current.image_path) {
-    await removeProductImageFiles(client, current.image_path)
+  if (uploadedPath && previousImagePath) {
+    await removeProductImageFiles(client, previousImagePath)
   }
 
-  const updated = normalizeProductRow(data as Record<string, unknown>)
-  updated.hidden = current.hidden
-  updated.product_key = current.product_key
-  if (!(await hasBrandColumn(client))) {
-    await setProductBrandInStorage(client, id, brandValue)
-  }
-  updated.brand = brandValue || updated.brand
-  return updated
+  return data as Product
 }
 
 export async function deleteProduct(id: string): Promise<void> {
@@ -362,15 +224,9 @@ export async function deleteProduct(id: string): Promise<void> {
 
   if (fetchError) throw fetchError
 
-  const { error } = await client.from('products').delete().eq('id', id)
+  const { data: deleted, error } = await client.from('products').delete().eq('id', id).select('id')
   if (error) throw error
-
-  await removeProductFromHiddenStorage(client, id)
-  await removeProductBrandFromStorage(client, id)
-
-  if (!(await hasProductKeyColumn(client))) {
-    await removeStorageProductKey(client, id)
-  }
+  if (!deleted?.length) throw new Error('Could not delete the product. Sign in again and retry.')
 
   const imagePath = (existing as { image_path: string | null }).image_path
   if (imagePath) {

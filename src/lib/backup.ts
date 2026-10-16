@@ -36,27 +36,40 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-export async function downloadCatalogueBackup(): Promise<void> {
+const IMAGE_DOWNLOAD_CONCURRENCY = 6
+
+export type BackupResult = { failedImages: string[] }
+
+export async function downloadCatalogueBackup(): Promise<BackupResult> {
   const products = await listProducts()
   const zipEntries: Record<string, Uint8Array> = {}
-  const backupProducts: BackupProductRecord[] = []
+  const failedImages: string[] = []
 
-  for (const product of products) {
-    const imageFile = product.image_path
-      ? `images/${product.id}${imageExtension(product.image_path)}`
-      : null
+  const imageFileFor = (product: Product) =>
+    product.image_path ? `images/${product.id}${imageExtension(product.image_path)}` : null
 
-    if (imageFile && product.image_path) {
+  const backupProducts: BackupProductRecord[] = products.map((product) =>
+    toBackupRecord(product, imageFileFor(product)),
+  )
+
+  const withImages = products.filter((p) => p.image_path)
+  let next = 0
+  const worker = async () => {
+    while (next < withImages.length) {
+      const product = withImages[next++]!
       const imageUrl = getPublicImageUrl(product.image_path)
-      if (imageUrl) {
+      const imageFile = imageFileFor(product)!
+      try {
+        if (!imageUrl) throw new Error('No image URL')
         const res = await fetch(imageUrl)
-        if (!res.ok) throw new Error(`Failed to download image for ${product.name}.`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         zipEntries[imageFile] = new Uint8Array(await res.arrayBuffer())
+      } catch {
+        failedImages.push(product.name)
       }
     }
-
-    backupProducts.push(toBackupRecord(product, imageFile))
   }
+  await Promise.all(Array.from({ length: IMAGE_DOWNLOAD_CONCURRENCY }, worker))
 
   const manifest: CatalogueBackupJson = {
     exported_at: new Date().toISOString(),
@@ -72,6 +85,7 @@ export async function downloadCatalogueBackup(): Promise<void> {
   const blob = new Blob([new Uint8Array(zipped)], { type: 'application/zip' })
   const date = new Date().toISOString().slice(0, 10)
   downloadBlob(blob, `catalogue-plus-backup-${date}.zip`)
+  return { failedImages }
 }
 
 function toBackupRecord(product: Product, imageFile: string | null): BackupProductRecord {

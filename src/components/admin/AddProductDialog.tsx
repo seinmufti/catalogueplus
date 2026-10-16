@@ -28,7 +28,7 @@ import {
   listProducts,
 } from '@/lib/products'
 import { categoryGroupLabel } from '@/lib/groupProductsByCategory'
-import { removeCategoryFromOrder } from '@/lib/categoryOrderStorage'
+import { removeCategoryFromOrder } from '@/lib/categoryOrder'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/types/product'

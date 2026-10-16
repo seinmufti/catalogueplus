@@ -15,8 +15,12 @@ export function DownloadBackupButton() {
     }
     setDownloading(true)
     try {
-      await downloadCatalogueBackup()
-      toast.success('Backup downloaded.')
+      const { failedImages } = await downloadCatalogueBackup()
+      if (failedImages.length > 0) {
+        toast.warning(`Backup downloaded, but ${failedImages.length} image(s) could not be saved.`)
+      } else {
+        toast.success('Backup downloaded.')
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not create backup.'
       toast.error(message)

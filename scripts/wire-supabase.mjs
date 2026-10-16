@@ -7,19 +7,17 @@
  *
  * Optional: $env:SUPABASE_PROJECT_REF = "abcdefghijklmnop"
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const envPath = path.join(root, '.env.local')
-const migrationPaths = [
-  path.join(root, 'supabase', 'migrations', '001_products.sql'),
-  path.join(root, 'supabase', 'migrations', '002_products_revealed.sql'),
-  path.join(root, 'supabase', 'migrations', '003_products_unique_name.sql'),
-  path.join(root, 'supabase', 'migrations', '004_product_key.sql'),
-  path.join(root, 'supabase', 'migrations', '005_products_brand.sql'),
-]
+const migrationsDir = path.join(root, 'supabase', 'migrations')
+const migrationPaths = readdirSync(migrationsDir)
+  .filter((f) => f.endsWith('.sql'))
+  .sort()
+  .map((f) => path.join(migrationsDir, f))
 
 const token = process.env.SUPABASE_ACCESS_TOKEN
 if (!token) {

@@ -7,7 +7,7 @@ export type Product = {
   brand: string
   quantity_in_carton: number
   image_path: string | null
-  /** Hidden from customer catalogue (stored in Supabase Storage, not the products table). */
+  /** Hidden from the customer catalogue. */
   hidden: boolean
   created_at: string
 }

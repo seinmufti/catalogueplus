@@ -1,96 +1,65 @@
-import {
-  getCachedAdminPasswordHash,
-  hashAdminPassword,
-  hydrateAdminPasswordHashFromSession,
-  loadAdminPasswordHash,
-  persistAdminPasswordHash,
-  setCachedAdminPasswordHash,
-} from '@/lib/adminPasswordStorage'
 import { supabase } from '@/lib/supabase'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
-const SESSION_KEY_PREFIX = 'catalogue-plus-admin-auth:'
+export const MIN_ADMIN_PASSWORD_LENGTH = 8
 
-function sessionKey(storeSlug: string): string {
-  return `${SESSION_KEY_PREFIX}${storeSlug}`
+export type AuthResult = { ok: true } | { ok: false; error: string }
+
+function notConfigured(): AuthResult {
+  return { ok: false, error: 'Supabase is not configured.' }
 }
 
-/** Used only when no saved hash exists in storage. */
-export function getBootstrapAdminPassword(): string {
-  return import.meta.env.VITE_ADMIN_PASSWORD?.trim() || '1997'
-}
-
-export async function initAdminPassword(client: SupabaseClient | null): Promise<void> {
-  if (!client) {
-    setCachedAdminPasswordHash(null)
-    return
+export async function signInAdmin(email: string, password: string): Promise<AuthResult> {
+  if (!supabase) return notConfigured()
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+  if (error) {
+    return {
+      ok: false,
+      error: /invalid login/i.test(error.message) ? 'Incorrect email or password.' : error.message,
+    }
   }
-  if (hydrateAdminPasswordHashFromSession()) return
-  await loadAdminPasswordHash(client)
+  return { ok: true }
 }
 
-async function ensureAdminPasswordHashLoaded(): Promise<void> {
-  if (getCachedAdminPasswordHash() !== undefined) return
-  if (!supabase) {
-    setCachedAdminPasswordHash(null)
-    return
+export async function signOutAdmin(): Promise<void> {
+  await supabase?.auth.signOut()
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<AuthResult> {
+  if (!supabase) return notConfigured()
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: window.location.href,
+  })
+  return error ? { ok: false, error: error.message } : { ok: true }
+}
+
+/** Sets a new password for the signed-in user (also used after following a reset email). */
+export async function setAdminPassword(newPassword: string): Promise<AuthResult> {
+  if (!supabase) return notConfigured()
+  if (newPassword.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    return {
+      ok: false,
+      error: `New password must be at least ${MIN_ADMIN_PASSWORD_LENGTH} characters.`,
+    }
   }
-  await loadAdminPasswordHash(supabase)
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  return error ? { ok: false, error: error.message } : { ok: true }
 }
-
-/** Client-side gate only — not a substitute for server auth. */
-export async function verifyAdminPassword(password: string): Promise<boolean> {
-  await ensureAdminPasswordHashLoaded()
-  const storedHash = getCachedAdminPasswordHash()
-  if (storedHash) {
-    return (await hashAdminPassword(password)) === storedHash
-  }
-  return password === getBootstrapAdminPassword()
-}
-
-export function isAdminAuthenticated(storeSlug: string): boolean {
-  if (typeof sessionStorage === 'undefined') return false
-  return sessionStorage.getItem(sessionKey(storeSlug)) === '1'
-}
-
-export function setAdminAuthenticated(storeSlug: string): void {
-  sessionStorage.setItem(sessionKey(storeSlug), '1')
-}
-
-export type ChangeAdminPasswordResult =
-  | { ok: true }
-  | { ok: false; error: string }
 
 export async function changeAdminPassword(
   oldPassword: string,
   newPassword: string,
-): Promise<ChangeAdminPasswordResult> {
-  if (!supabase) {
-    return { ok: false, error: 'Supabase is not configured. Password cannot be saved.' }
-  }
-
-  const trimmedNew = newPassword.trim()
-  if (!trimmedNew) {
-    return { ok: false, error: 'New password cannot be empty.' }
-  }
-  if (trimmedNew.length < 4) {
-    return { ok: false, error: 'New password must be at least 4 characters.' }
-  }
-
-  if (!(await verifyAdminPassword(oldPassword))) {
-    return { ok: false, error: 'Current password is incorrect.' }
-  }
-
-  if (oldPassword === trimmedNew) {
+): Promise<AuthResult> {
+  if (!supabase) return notConfigured()
+  if (oldPassword === newPassword) {
     return { ok: false, error: 'Choose a different new password.' }
   }
 
-  try {
-    const hash = await hashAdminPassword(trimmedNew)
-    await persistAdminPasswordHash(supabase, hash)
-    return { ok: true }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not save the new password.'
-    return { ok: false, error: message }
-  }
+  const { data } = await supabase.auth.getUser()
+  const email = data.user?.email
+  if (!email) return { ok: false, error: 'You are not signed in.' }
+
+  const verified = await signInAdmin(email, oldPassword)
+  if (!verified.ok) return { ok: false, error: 'Current password is incorrect.' }
+
+  return setAdminPassword(newPassword)
 }

@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
-import { AdminPasswordGate } from '@/components/admin/AdminPasswordGate'
+import { AdminAuthGate } from '@/components/admin/AdminAuthGate'
 import { AdminViewportSwitch } from '@/components/admin/AdminViewportSwitch'
 import { StoreCatalogueRoute } from '@/components/routing/StoreCatalogueRoute'
 import { getRouterBasename } from '@/lib/router-basename'
@@ -13,9 +13,9 @@ function StoreAdminRoute() {
     return <Navigate to="/" replace />
   }
   return (
-    <AdminPasswordGate>
+    <AdminAuthGate>
       <AdminViewportSwitch />
-    </AdminPasswordGate>
+    </AdminAuthGate>
   )
 }
 

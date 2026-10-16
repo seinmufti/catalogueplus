@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CustomerCatalogueFooter } from '@/components/customer/CustomerCatalogueFooter'
 import { CustomerCatalogueHeader } from '@/components/customer/CustomerCatalogueHeader'
 import { CustomerCatalogueSkeleton } from '@/components/customer/CustomerCatalogueSkeleton'
@@ -10,50 +10,47 @@ import { groupProductsByCategory } from '@/lib/groupProductsByCategory'
 import {
   mergeCategoryOrderWithLabels,
   readCategoryOrder,
-} from '@/lib/categoryOrderStorage'
+} from '@/lib/categoryOrder'
 import { listCatalogueProducts } from '@/lib/products'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/types/product'
 
 export function CustomerCataloguePage() {
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [products, setProducts] = useState<Product[]>([])
-  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
+  const [savedOrder, setSavedOrder] = useState<string[] | null>(null)
+  const [loading, setLoading] = useState(supabaseConfigured)
   const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    if (!supabaseConfigured) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      setProducts(await listCatalogueProducts())
-    } catch (err) {
-      if (isProductsTableMissingError(err)) {
-        setProducts([])
-      } else {
-        setError(formatLoadError(err, 'Failed to load catalogue.'))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
 
   useEffect(() => {
     if (!supabase) return
-    void readCategoryOrder(supabase).then((saved) => {
-      setCategoryOrder(
-        mergeCategoryOrderWithLabels(saved, products.map((p) => p.category)),
-      )
-    })
-  }, [products])
+    let cancelled = false
+
+    // Saved order is optional; fall back to alphabetical when it cannot be read.
+    Promise.all([listCatalogueProducts(), readCategoryOrder(supabase).catch(() => null)])
+      .then(([list, saved]) => {
+        if (cancelled) return
+        setSavedOrder(saved)
+        setProducts(list)
+      })
+      .catch((err) => {
+        if (cancelled || isProductsTableMissingError(err)) return
+        setError(formatLoadError(err, 'Failed to load catalogue.'))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const categoryOrder = useMemo(
+    () => mergeCategoryOrderWithLabels(savedOrder, products.map((p) => p.category)),
+    [savedOrder, products],
+  )
 
   const categoryGroups = useMemo(
     () => groupProductsByCategory(products, categoryOrder),
@@ -63,13 +60,17 @@ export function CustomerCataloguePage() {
   const fitsOneScreen =
     !multiSection && products.length > 0 && products.length <= DUMMY_PRODUCT_COUNT
 
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
   return (
     <div
       dir="rtl"
       lang="ar"
       className="flex h-full min-h-0 w-full flex-col overflow-hidden"
     >
-      <CustomerCatalogueHeader />
+      <CustomerCatalogueHeader onScrollToTop={scrollToTop} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pt-1 pb-1">
         {!supabaseConfigured && (
@@ -84,7 +85,7 @@ export function CustomerCataloguePage() {
           </p>
         )}
 
-        {loading && supabaseConfigured && <CustomerCatalogueSkeleton />}
+        {loading && supabaseConfigured && <CustomerCatalogueSkeleton scrollRef={scrollRef} />}
 
         {!loading && supabaseConfigured && products.length === 0 && !error && (
           <p className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">
@@ -94,6 +95,7 @@ export function CustomerCataloguePage() {
 
         {!loading && products.length > 0 && (
           <div
+            ref={scrollRef}
             className={cn(
               'min-h-0 flex-1',
               fitsOneScreen
